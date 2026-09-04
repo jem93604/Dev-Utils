@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   getNotes, getPins, getQueries, getScripts, getSections, getStats,
   togglePinRemote,
-  type Note, type Query, type ScriptItem, type Section, type Stats,
+  type Note, type NoteSort, type Query, type ScriptItem, type Section, type Stats,
 } from '../lib/api';
 import { toast } from '../components/ui';
 
@@ -63,11 +63,13 @@ export function useStats(): Stats {
   return data;
 }
 
-export function useNotes() {
+export function useNotes(sort: NoteSort = 'created') {
   const [data, setData] = useState<Note[]>([]);
   useEffect(() => {
-    getNotes().then(setData).catch(() => setData([]));
-  }, []);
+    let alive = true;
+    getNotes(sort).then((n) => { if (alive) setData(n); }).catch(() => { if (alive) setData([]); });
+    return () => { alive = false; };
+  }, [sort]);
   return [data, setData] as const;
 }
 

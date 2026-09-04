@@ -11,7 +11,10 @@ export interface Query {
   steps: string; sql_text: string; variables: string[]; pinned: boolean;
 }
 export interface InputDef { key: string; label: string; placeholder: string }
-export interface Note { id: string; title: string; content: string; created_at?: string }
+export interface Note {
+  id: string; title: string; content: string;
+  sort_order?: number; created_at?: string; updated_at?: string;
+}
 export interface ScriptItem {
   id: string; file_name: string; path: string; remark: string;
   purpose: string; steps: string;
@@ -43,8 +46,10 @@ export async function togglePinRemote(queryId: string, pinned: boolean) {
 }
 
 /* ---- Notes ---- */
-export async function getNotes(): Promise<Note[]> {
-  const r = await api.get('/notes');
+export type NoteSort = 'created' | 'modified' | 'custom';
+
+export async function getNotes(sort: NoteSort = 'created'): Promise<Note[]> {
+  const r = await api.get('/notes', { params: { sort } });
   return r.data;
 }
 export async function createNote(payload: { title: string; content: string }): Promise<Note> {
@@ -57,6 +62,10 @@ export async function updateNote(id: string, payload: { title: string; content: 
 }
 export async function deleteNote(id: string) {
   await api.delete(`/notes/${id}`);
+}
+export async function reorderNotes(ids: string[]) {
+  const r = await api.put('/notes/reorder', { ids });
+  return r.data;
 }
 
 /* ---- Scripts ---- */

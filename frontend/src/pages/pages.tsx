@@ -3,6 +3,7 @@ import type { Query, Section } from '../lib/api';
 import { UTILS } from '../lib/utils-registry';
 import { QueryCard } from '../components/QueryCard';
 import { DifferPanel, FormatterPanel, NotesPanel, ScriptPanel } from '../components/Tools';
+import { NotesGrid } from '../components/NotesGrid';
 import { Empty, PurposeBox, SectionHeader, StatCard } from '../components/ui';
 import { usePins, useQueries, useSections, useStats, useTogglePin } from '../hooks/useData';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
@@ -34,6 +35,9 @@ export function HomePage() {
       {pins.length === 0
         ? <Empty icon="📌" text="No pinned queries yet" hint="Click the 📌 icon on any query to pin it here" />
         : pins.map((q) => <QueryCard key={q.id} q={q} onTogglePin={onPin} />)}
+      <div style={{ marginTop: 16 }}>
+        <NotesGrid preview limit={6} />
+      </div>
     </div>
   );
 }

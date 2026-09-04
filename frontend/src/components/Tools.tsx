@@ -2,12 +2,13 @@
 // Formatter + Differ are client-only. Notes + Scripts are API-backed.
 import { useState } from 'react';
 import {
-  createNote, createScript, deleteNote, deleteScript,
-  updateNote, updateScript, type Note, type ScriptPayload,
+  createScript, deleteScript,
+  updateScript, type ScriptPayload,
 } from '../lib/api';
 import { diffLines, formatData, type FmtKind } from '../lib/format';
-import { useNotes, useScripts } from '../hooks/useData';
-import { Field, Modal, SectionHeader, Empty, TButton, toast } from './ui';
+import { useScripts } from '../hooks/useData';
+import { Field, Modal, SectionHeader, TButton, toast } from './ui';
+import { NotesGrid } from './NotesGrid';
 
 export function FormatterPanel() {
   const [input, setInput] = useState('');
@@ -80,78 +81,7 @@ export function DifferPanel() {
 }
 
 export function NotesPanel() {
-  const [notes, setNotes] = useNotes();
-  const [open, setOpen] = useState<string | null>(null);
-  const [modal, setModal] = useState<null | { id?: string; title: string; content: string }>(null);
-
-  const save = async () => {
-    if (!modal || !modal.title.trim()) { toast('Title required'); return; }
-    try {
-      if (modal.id) {
-        const updated = await updateNote(modal.id, { title: modal.title.trim(), content: modal.content });
-        setNotes((ns) => ns.map((n) => (n.id === updated.id ? updated : n)));
-        toast('Note updated ✓');
-      } else {
-        const created = await createNote({ title: modal.title.trim(), content: modal.content });
-        setNotes((ns) => [created, ...ns]);
-        toast('Note added ✓');
-      }
-      setModal(null);
-    } catch {
-      toast('Save failed');
-    }
-  };
-
-  const remove = async (id: string) => {
-    if (!window.confirm('Delete note?')) return;
-    await deleteNote(id);
-    setNotes((ns) => ns.filter((n) => n.id !== id));
-  };
-
-  const startAdd = () => setModal({ title: '', content: '' });
-  const startEdit = (n: Note) => setModal({ id: n.id, title: n.title, content: n.content });
-
-  return (
-    <section id="sec-notes" className="section-block">
-      <SectionHeader
-        color="#fbbf24" title="📝 Notes & Snippets"
-        right={<TButton onClick={startAdd}>+ Note</TButton>}
-      />
-      {notes.length === 0 ? <Empty icon="📝" text="No notes yet" hint="Click + Note to add one" /> : (
-        <div className="note-grid">
-          {notes.map((n) => (
-            <div key={n.id} className={`note-card${open === n.id ? '' : ' collapsed'}`}>
-              <div className="note-head" onClick={() => setOpen((o) => (o === n.id ? null : n.id))}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span>{open === n.id ? '▼' : '▶'}</span>
-                  <span className="note-title-text">{n.title}</span>
-                </div>
-                <div style={{ display: 'flex', gap: 4 }} onClick={(e) => e.stopPropagation()}>
-                  <button className="qbtn" onClick={() => startEdit(n)} title="Edit">✎</button>
-                  <button className="qbtn qbtn-del" onClick={() => remove(n.id)} title="Delete">×</button>
-                </div>
-              </div>
-              <div className="note-body">
-                <div className="note-content">{n.content}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-      <Modal
-        open={modal !== null} onClose={() => setModal(null)}
-        title={modal?.id ? 'Edit Note' : 'Add Note'}
-        footer={<><TButton onClick={() => setModal(null)}>Cancel</TButton><TButton variant="primary" onClick={save}>Save</TButton></>}
-      >
-        <Field label="Title *">
-          <input value={modal?.title ?? ''} onChange={(e) => setModal((m) => (m ? { ...m, title: e.target.value } : m))} placeholder="e.g. Server Commands" />
-        </Field>
-        <Field label="Content">
-          <textarea value={modal?.content ?? ''} onChange={(e) => setModal((m) => (m ? { ...m, content: e.target.value } : m))} rows={6} placeholder="Multi-line note..." style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '.76rem' }} />
-        </Field>
-      </Modal>
-    </section>
-  );
+  return <NotesGrid />;
 }
 
 const emptyScript: ScriptPayload = { file_name: '', path: '', remark: '', purpose: '', steps: '' };
