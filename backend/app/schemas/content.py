@@ -73,9 +73,17 @@ class NoteCreate(BaseModel):
 
 class NoteOut(NoteCreate):
     id: uuid.UUID
+    sort_order: int = 0
     created_at: datetime | None = None
+    updated_at: datetime | None = None
 
     model_config = {"from_attributes": True}
+
+
+class ReorderNotes(BaseModel):
+    """Full custom order: first id gets sort_order 0, next 1, ..."""
+
+    ids: list[uuid.UUID]
 
 
 class ScriptCreate(BaseModel):

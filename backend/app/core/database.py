@@ -21,3 +21,23 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def ensure_columns():
+    """Lightweight in-place migrations for deployments without Alembic.
+
+    create_all() creates missing tables but never adds columns to existing
+    ones, so each (table, column, ddl) pair here is checked and added once.
+    """
+    from sqlalchemy import inspect, text
+
+    pending = [
+        ("notes", "sort_order", "ALTER TABLE notes ADD COLUMN sort_order INTEGER DEFAULT 0"),
+    ]
+    with engine.begin() as conn:
+        for table, column, ddl in pending:
+            if table not in inspect(conn).get_table_names():
+                continue
+            cols = {c["name"] for c in inspect(conn).get_columns(table)}
+            if column not in cols:
+                conn.execute(text(ddl))

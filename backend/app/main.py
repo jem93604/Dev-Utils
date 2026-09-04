@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
-from app.core.database import Base, engine
+from app.core.database import Base, engine, ensure_columns
 import app.models  # noqa: F401  (register models)
 from app.api.v1 import sections, queries, tools
 
@@ -11,6 +11,7 @@ from app.api.v1 import sections, queries, tools
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Alembic handles prod migrations; create_all keeps dev/simple deploys working for V1
+    ensure_columns()
     Base.metadata.create_all(bind=engine)
     yield
 

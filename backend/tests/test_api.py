@@ -156,3 +156,39 @@ def test_search(client, section):
     r = client.get("/api/v1/search", params={"q": "unicorn"}).json()
     assert len(r["queries"]) == 1
     assert client.get("/api/v1/search", params={"q": "zzz-no-match"}).json()["queries"] == []
+
+
+def _mk_note(client, title):
+    r = client.post("/api/v1/notes", json={"title": title, "content": ""})
+    assert r.status_code == 200, r.text
+    return r.json()
+
+
+def test_notes_default_order_is_newest_first(client):
+    a = _mk_note(client, "first")
+    b = _mk_note(client, "second")
+    titles = [n["title"] for n in client.get("/api/v1/notes").json()]
+    assert titles == ["second", "first"]
+    assert a["sort_order"] > b["sort_order"]  # newest sorts first in custom mode
+
+
+def test_notes_sort_param(client):
+    _mk_note(client, "one")
+    _mk_note(client, "two")
+    assert [n["title"] for n in client.get("/api/v1/notes", params={"sort": "created"}).json()] == ["two", "one"]
+    assert [n["title"] for n in client.get("/api/v1/notes", params={"sort": "custom"}).json()] == ["two", "one"]
+    assert client.get("/api/v1/notes", params={"sort": "bogus"}).status_code == 422
+
+
+def test_notes_reorder_persists_custom_order(client):
+    a = _mk_note(client, "A")
+    b = _mk_note(client, "B")
+    c = _mk_note(client, "C")
+    r = client.put("/api/v1/notes/reorder", json={"ids": [c["id"], a["id"], b["id"]]})
+    assert r.json() == {"ok": True}
+    titles = [n["title"] for n in client.get("/api/v1/notes", params={"sort": "custom"}).json()]
+    assert titles == ["C", "A", "B"]
+    # unknown ids are ignored, not errors
+    assert client.put("/api/v1/notes/reorder", json={"ids": [b["id"], "00000000-0000-0000-0000-000000000000"]}).json() == {"ok": True}
+    titles = [n["title"] for n in client.get("/api/v1/notes", params={"sort": "custom"}).json()]
+    assert titles[0] == "B"

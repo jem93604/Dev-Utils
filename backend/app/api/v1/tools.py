@@ -6,7 +6,7 @@ from app.core.database import get_db
 from app.core.deps import get_current_user_id
 from app.models.entities import Pin, Query
 from app.schemas.content import (
-    NoteCreate, NoteOut, ScriptCreate, ScriptOut, VersionCreate, VersionOut,
+    NoteCreate, NoteOut, ReorderNotes, ScriptCreate, ScriptOut, VersionCreate, VersionOut,
 )
 from app.models.entities import Note, Script, Version, Section, SectionInput, Input
 
@@ -46,19 +46,41 @@ def unpin(query_id: uuid.UUID, db: Session = Depends(get_db)):
 
 # ---- Notes ----
 @router.get("/notes", response_model=list[NoteOut])
-def list_notes(db: Session = Depends(get_db)):
+def list_notes(sort: str = "created", db: Session = Depends(get_db)):
+    from fastapi import HTTPException
     uid = get_current_user_id(db)
-    return db.query(Note).filter_by(owner_id=uid).order_by(Note.created_at.desc()).all()
+    q = db.query(Note).filter_by(owner_id=uid)
+    if sort == "created":
+        return q.order_by(Note.created_at.desc(), Note.sort_order.asc()).all()
+    if sort == "modified":
+        return q.order_by(Note.updated_at.desc(), Note.sort_order.asc()).all()
+    if sort == "custom":
+        return q.order_by(Note.sort_order.asc(), Note.created_at.desc()).all()
+    raise HTTPException(422, "sort must be created|modified|custom")
 
 
 @router.post("/notes", response_model=NoteOut)
 def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
+    from sqlalchemy import func
     uid = get_current_user_id(db)
-    n = Note(owner_id=uid, title=payload.title.strip(), content=payload.content)
+    lowest = db.query(func.min(Note.sort_order)).filter_by(owner_id=uid).scalar()
+    first = (lowest - 1) if lowest is not None else 0
+    n = Note(owner_id=uid, title=payload.title.strip(), content=payload.content, sort_order=first)
     db.add(n)
     db.commit()
     db.refresh(n)
     return n
+
+
+@router.put("/notes/reorder")
+def reorder_notes(payload: ReorderNotes, db: Session = Depends(get_db)):
+    uid = get_current_user_id(db)
+    by_id = {n.id: n for n in db.query(Note).filter_by(owner_id=uid).all()}
+    for i, nid in enumerate(payload.ids):
+        if nid in by_id:
+            by_id[nid].sort_order = i
+    db.commit()
+    return {"ok": True}
 
 
 @router.patch("/notes/{note_id}", response_model=NoteOut)
