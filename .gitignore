@@ -1,0 +1,23 @@
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Databases (local dev only)
+*.db
+*.sqlite3
+
+# Secrets / local config
+.env
+
+# Node / frontend
+node_modules/
+dist/
+*.local
+
+# OS / editors
+.DS_Store
+*.log
+.vscode/
+.idea/

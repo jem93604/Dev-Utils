@@ -1,0 +1,855 @@
+{
+  "embedded": {
+    "sections": [
+      {
+        "id": "sec-partial",
+        "name": "Partial Invoice & Enquiries",
+        "color": "#f0a500",
+        "desc": "Handles partial invoices stuck in the system, and enquiry records that need status updates or rejection.",
+        "inputs": [
+          "enquiry",
+          "job",
+          "invoice"
+        ]
+      },
+      {
+        "id": "sec-stock",
+        "name": "Stock Analysis",
+        "color": "#34d399",
+        "desc": "Queries to investigate stock discrepancies, check branch stock levels, batch/IMEI availability and GRN details.",
+        "inputs": [
+          "branch",
+          "br_code",
+          "item",
+          "batch",
+          "transfer",
+          "grn",
+          "to_batch",
+          "item2",
+          "imei"
+        ]
+      },
+      {
+        "id": "sec-sales",
+        "name": "Sales & Invoice",
+        "color": "#60a5fa",
+        "desc": "Fix sales invoice issues \u2014 wrong IMEI/batch on a sold item, incorrect item codes, duplicate invoices, and DELETE flows.",
+        "inputs": [
+          "invoice",
+          "item",
+          "batch",
+          "to_batch",
+          "item2",
+          "br_code",
+          "value",
+          "bsd_id",
+          "new_qty",
+          "bsid_id"
+        ]
+      },
+      {
+        "id": "sec-transfer",
+        "name": "Stock Transfer",
+        "color": "#a78bfa",
+        "desc": "Investigate and fix stock transfer issues \u2014 stuck transfers, incorrect quantities, IST details, IMEI mismatches during branch-to-branch transfers.",
+        "inputs": [
+          "transfer",
+          "item",
+          "batch",
+          "br_code",
+          "branch"
+        ]
+      },
+      {
+        "id": "sec-grn",
+        "name": "GRN & Purchase",
+        "color": "#fb923c",
+        "desc": "Queries to investigate GRN (Goods Receipt Notes) and purchase entries \u2014 missing stock after GRN, batch mismatches, cost updates and goods return fixes.",
+        "inputs": [
+          "grn",
+          "item",
+          "batch",
+          "br_code",
+          "to_batch",
+          "item2",
+          "qty"
+        ]
+      },
+      {
+        "id": "sec-job",
+        "name": "Job & Service",
+        "color": "#22d3ee",
+        "desc": "Job card and service-related queries \u2014 stuck jobs, item_service records, job status fixes and service charge corrections.",
+        "inputs": [
+          "job",
+          "invoice",
+          "enquiry",
+          "item",
+          "job_transfer",
+          "pk_id",
+          "br_code",
+          "batch",
+          "to_batch",
+          "imei",
+          "item_code"
+        ]
+      },
+      {
+        "id": "sec-misc",
+        "name": "Misc / Other",
+        "color": "#f472b6",
+        "desc": "General utility queries \u2014 item master lookup, useful for day-to-day database checks that do not fit into a specific module.",
+        "inputs": [
+          "invoice",
+          "item",
+          "pk_id"
+        ]
+      },
+      {
+        "id": "sec-item-enquiry",
+        "name": "Item Enquiry",
+        "color": "#f87171",
+        "desc": "Queries for item-level investigations \u2014 checking IMEI across all stock tables, item rename/swap fixes.",
+        "inputs": [
+          "item",
+          "batch",
+          "br_code",
+          "to_batch",
+          "item2",
+          "item_code"
+        ]
+      },
+      {
+        "id": "sec-transactions",
+        "name": "Transactions",
+        "color": "#fbbf24",
+        "desc": "Transaction table queries \u2014 fixing transaction records, checking document type entries, and journal fixes.",
+        "inputs": [
+          "invoice",
+          "receipt",
+          "pk_id"
+        ]
+      },
+      {
+        "id": "sec-loyalty",
+        "name": "Loyalty",
+        "color": "#34d399",
+        "desc": "Loyalty program queries \u2014 member lookup, point adjustment, redemption issues and loyalty ID fixes.",
+        "inputs": [
+          "loyalty_id",
+          "phone",
+          "customer",
+          "tocustomer"
+        ]
+      },
+      {
+        "id": "sec-accounts",
+        "name": "Accounts",
+        "color": "#a78bfa",
+        "desc": "Account/finance queries \u2014 receipt fixes, voucher lookups, account code corrections.",
+        "inputs": [
+          "receipt",
+          "accno",
+          "brid",
+          "branch",
+          "br_code"
+        ]
+      },
+      {
+        "id": "sec-server",
+        "name": "Server",
+        "color": "#94a3b8",
+        "desc": "Server administration \u2014 deployment steps for new releases, uwsgi config, connection diagnostics, and auto-mailer fixes.",
+        "inputs": [
+          "invoice",
+          "grn",
+          "transfer",
+          "branch",
+          "item",
+          "batch",
+          "receipt",
+          "phone",
+          "customer",
+          "tocustomer",
+          "job_transfer",
+          "qty",
+          "accno",
+          "brid",
+          "br_code",
+          "item2",
+          "to_batch"
+        ]
+      },
+      {
+        "id": "sec-1775475515173",
+        "name": "non -saleable",
+        "color": "#f0a500",
+        "desc": "to check the non saleable records",
+        "inputs": [
+          "imei_or_batch"
+        ]
+      },
+      {
+        "id": "sec-1775558024493",
+        "name": "ledger mapping",
+        "color": "#f0a500",
+        "desc": "in mail they provide godown and cash in had ledger to map",
+        "inputs": [
+          "account_code",
+          "account_name",
+          "module_name",
+          "category",
+          "status",
+          "type",
+          "branch_id"
+        ]
+      },
+      {
+        "id": "sec-1776072089602",
+        "name": "RECEIPT",
+        "color": "#f0a500",
+        "desc": "issue with receipts",
+        "inputs": [
+          "mobile_number",
+          "receipt_number",
+          "correct_customer_id",
+          "wrong_customer_id"
+        ]
+      }
+    ],
+    "queries": [
+      {
+        "id": "q_pi_1",
+        "title": "Reject from POS / Update Active Status",
+        "purpose": "Use this to find and deactivate a partial invoice or enquiry stuck as active. Needed when a quote or partial entry cannot be cleared from the POS screen.",
+        "steps": "1. Enter the Enquiry # or Job # in the input above\n2. Run the first SELECT to verify the record exists\n3. If confirmed, run the UPDATE to set int_active = -1 (deactivates it)\n4. Verify by running the SELECT again",
+        "sql": "SELECT * FROM partial_invoice WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}');\n\nSELECT * FROM partial_invoice WHERE json_data ->> 'vchr_job_num' in ('{{job}}');\n\nUPDATE partial_invoice SET int_active = -1 WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}');\n\nUPDATE partial_invoice SET int_active = -1 WHERE pk_bint_id = (SELECT pk_bint_id FROM partial_invoice WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}'));",
+        "sectionId": "sec-partial"
+      },
+      {
+        "id": "q_st_1",
+        "sectionId": "sec-stock",
+        "title": "General Branch & Item Info",
+        "purpose": "Quick lookup of a branch record and item record. First step to get internal pk_bint_id values needed for deeper stock queries.",
+        "steps": "1. Enter Branch Name/Code and Item Code\n2. Run to get pk_bint_id for both\n3. Use these IDs in stock detail queries below",
+        "sql": "SELECT pk_bint_id, vchr_name, vchr_code FROM branch WHERE vchr_name = '{{branch}}' OR vchr_code = '{{br_code}}';\nSELECT pk_bint_id, vchr_item_code, vchr_item_name FROM item WHERE vchr_item_code = '{{item}}';\n\nSELECT sum(int_received) FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}') \nAND bsd.jsn_batch_no -> 'batch' ? '{{batch}}';\n\nSELECT sum(int_qty) FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}') \nAND bsd.jsn_batch_no::jsonb -> 'batch' ? '{{batch}}';\n\n-- 1. Check by branch and batch\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}' OR vchr_code = '{{br_code}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}';\n\n-- 2. Check by item, branch and batch\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}')\nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}';\n\n-- 3. Check specific IMEI exists\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_imei -> 'imei' ? '{{imei}}';\n\n-- 4. Sum qty/received from imei details by branch + batch\nSELECT \n    sum(bsid.int_qty)      AS total_qty,\n    sum(bsid.int_received) AS total_received\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}';\n\n-- 5. Check reached vs received (reconciliation)\nSELECT \n    bsid.pk_bint_id,\n    bsid.jsn_batch_no,\n    bsid.jsn_imei,\n    bsid.int_qty,\n    bsid.int_received,\n    bsid.jsn_imei_reached,\n    bsid.jsn_batch_reached\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND bsid.int_qty != bsid.int_received;  -- mismatch check"
+      },
+      {
+        "id": "q_st_2",
+        "title": "Branch Stock Details (by Item + Branch Code)",
+        "purpose": "Detailed stock records for a specific item at a specific branch. Shows quantity, IMEI availability and batch info. Essential before making any stock correction.",
+        "steps": "1. Enter Item Code and Branch Code (short code like HPF, KGF)\n2. Optionally enter Batch/IMEI to narrow results\n3. Use SELECT to verify stock before running any UPDATE",
+        "sql": "SELECT bsd.* FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsd.int_qty > 0\nAND bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}')\nAND bsd.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND jsn_imei_avail -> 'imei_avail' ? '{{batch}}';\n\nSELECT bsd.* FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}')\nAND jsn_imei -> 'imei' ? '{{batch}}';\n\nSELECT gd.pk_bint_id,int_qty,int_avail,vchr_batch_no,fk_branch_id \nFROM grn_details gd JOIN grn_master gm ON gm.pk_bint_id = gd.fk_purchase_id \nWHERE gm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}') \nAND gd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND vchr_batch_no = '{{batch}}';",
+        "sectionId": "sec-stock"
+      },
+      {
+        "id": "q_sal_1",
+        "sectionId": "sec-sales",
+        "title": "Find and Update Sales Details (IMEI/Batch Fix)",
+        "purpose": "When a sale was recorded with the wrong IMEI or batch number, use this query chain to find the exact sales_details row and correct it. Run SELECTs first.",
+        "steps": "1. Enter Invoice # and the WRONG Batch/IMEI\n2. Enter Item Code to narrow by item\n3. Run SELECT queries to identify the row\n4. Enter the CORRECT IMEI in the To Batch field\n5. Run the UPDATE query\n6. Verify with a final SELECT",
+        "sql": "SELECT * FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}');\nSELECT \n    sm.vchr_invoice_num,\n    b.vchr_code       AS branch_code,\n    b.vchr_name       AS branch_name,\n    i.vchr_item_code  AS item_code,\n    i.vchr_name       AS item_name,\n    sd.json_imei\nFROM sales_master sm\nJOIN branch b \n    ON b.pk_bint_id = sm.fk_branch_id\nJOIN sales_details sd \n    ON sd.fk_master_id = sm.pk_bint_id\nJOIN item i \n    ON i.pk_bint_id = sd.fk_item_id\nWHERE sm.vchr_invoice_num = '{{invoice}}'\nAND sd.json_imei ? '{{batch}}';\n\n\nSELECT sd.pk_bint_id,fk_master_id,fk_item_id,int_qty,json_imei \nFROM sales_details sd \nJOIN sales_master sm ON sd.fk_master_id = sm.pk_bint_id \nWHERE sm.vchr_invoice_num IN ('{{invoice}}') \nAND sd.json_imei ? '{{batch}}' \nAND sd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\nSELECT pk_bint_id,fk_master_id,fk_item_id,int_qty,json_imei \nFROM sales_details \nWHERE fk_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}')) \nAND json_imei ? '{{batch}}';\n\nUPDATE sales_details SET json_imei = '[\"{{to_batch}}\"]' \nWHERE fk_master_id IN (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}')) \nAND json_imei ? '{{batch}}';\n\n-- ============================================\n--  CHECK BRANCH STOCK DETAILS\n-- (BATCH OR IMEI EXISTENCE + QTY)\n-- ============================================\n\nSELECT bsd.pk_bint_id,\n       bsd.int_qty,\n       bsd.jsn_batch_no,\n       bsd.jsn_imei\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm \n    ON bsd.fk_master_id = bsm.pk_bint_id\nJOIN item i \n    ON i.pk_bint_id = bsd.fk_item_id\nJOIN branch b \n    ON b.pk_bint_id = bsm.fk_branch_id\nWHERE b.vchr_code = '{{br_code}}'\nAND i.vchr_item_code = '{{item}}'\nAND (\n    bsd.jsn_batch_no -> 'batch' ? '{{to_batch}}'\n    OR bsd.jsn_imei -> 'imei' ? '{{to_batch}}'\n);\n\n-- BRANCH STOCK IMEI DETAILS\nSELECT bsid.pk_bint_id,\n       bsid.fk_details_id,\n       bsid.int_qty,\n       bsid.jsn_batch_no,\n       bsid.jsn_imei\nFROM branch_stock_imei_details bsid\nWHERE bsid.fk_details_id = {{bsd_id}}\nAND (\n    bsid.jsn_batch_no -> 'batch' ? '{{to_batch}}'\n    OR bsid.jsn_imei -> 'imei' ? '{{to_batch}}'\n);\n--UPDATIONS\n\nBEGIN;\n-- Branch stock details\nUPDATE branch_stock_details\nSET int_qty = {{new_qty}}\nWHERE pk_bint_id = {{bsd_id}};\n\n-- Branch stock IMEI details\nUPDATE branch_stock_imei_details\nSET int_qty = {{new_qty}}\nWHERE pk_bint_id = {{bsid_id}};"
+      },
+      {
+        "id": "q_sal_2",
+        "title": "DELETE Duplicate / Full Invoice (Full Flow)",
+        "purpose": "When a duplicate sales invoice was created or a full invoice must be deleted. Always run inside BEGIN/ROLLBACK first. Deletes: sales_details, finance_details, payment_details, transaction, sales_master.",
+        "steps": "1. Enter the Invoice # of the duplicate/to-delete\n2. Run inside BEGIN to preview all related records\n3. Verify pk_bint_id of the correct record to delete\n4. Run DELETE statements in order\n5. COMMIT only after confirming",
+        "sql": "-- =========================\n-- VERIFY FIRST\n-- =========================\nBEGIN;\n\nSELECT pk_bint_id, vchr_invoice_num FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';\n\nSELECT sd.pk_bint_id, fk_master_id, fk_item_id, int_qty, json_imei\nFROM sales_details sd\nJOIN sales_master sm ON sd.fk_master_id = sm.pk_bint_id\nWHERE sm.vchr_invoice_num = '{{invoice}}';\n\nSELECT * FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\nSELECT * FROM finance_details WHERE fk_payment_id IN (SELECT pk_bint_id FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}'));\nSELECT * FROM transaction WHERE int_document_type = 3 AND int_document_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- =========================\n-- DELETE FLOW\n-- =========================\n\n-- 1. Sales Details\nDELETE FROM sales_details WHERE fk_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- 2. Finance Details\nDELETE FROM finance_details WHERE fk_payment_id IN (SELECT pk_bint_id FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}'));\n\n-- 3. Payment Details\nDELETE FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- 4. Transactions\nDELETE FROM transaction WHERE int_document_type = 3 AND int_document_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- 5. Sales Master\nDELETE FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';\n\nROLLBACK; -- Use this if something is wrong\n-- COMMIT;   -- Uncomment after verification",
+        "sectionId": "sec-sales"
+      },
+      {
+        "id": "q_tr_1",
+        "sectionId": "sec-transfer",
+        "title": "Transfer Details & IST",
+        "purpose": "View a stock transfer in full \u2014 IST details, IMEI layer, branch_stock_details. Use this to diagnose why a transfer is not reflecting correctly at the destination branch.",
+        "steps": "1. Enter Transfer # and Batch/IMEI\n2. Run SELECT on ist_details to see line items\n3. Check quantity fields for mismatches\n4. Use UPDATE queries only after confirming",
+        "sql": "SELECT array_agg(pk_bint_id) FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}');\n\nSELECT \n    id.*,\n    it.vchr_item_code,\n    st.vchr_stktransfer_num\nFROM ist_details id\nJOIN item it \n    ON it.pk_bint_id = id.fk_item_id\nJOIN stock_transfer st\n    ON st.pk_bint_id = id.fk_transfer_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND id.jsn_batch_no -> 'batch' ? '{{batch}}';\n\nSELECT * FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))\nAND jsn_batch_no -> 'batch' ? '{{batch}}'\nAND fk_item_id IN (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\n\n\n\nSELECT * FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))\nAND jsn_imei -> 'imei' ? '{{batch}}';\n\nSELECT * FROM stock_transfer_imei_details where fk_details_id =(SELECT pk_bint_id FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))\nAND jsn_imei -> 'imei' ? '{{batch}}');\nSELECT *\nFROM stock_transfer_imei_details\nWHERE fk_details_id IN (\n    SELECT pk_bint_id\n    FROM ist_details\n    WHERE fk_transfer_id IN (\n        SELECT pk_bint_id\n        FROM stock_transfer\n        WHERE vchr_stktransfer_num IN ('{{transfer}}')\n    )\n    AND jsn_imei -> 'imei' ? '{{batch}}'\n);\n-- Branch stock master id\nSELECT array_agg(DISTINCT(bsm.pk_bint_id)) AS bsm_id FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE fk_transfer_details_id IN (SELECT pk_bint_id FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}')));\n\nBEGIN;\n\nUPDATE ist_details id\nSET dbl_supplier_amt = it.dbl_supplier_cost\nFROM item it\nWHERE it.pk_bint_id = id.fk_item_id\n  AND id.fk_transfer_id IN (\n      SELECT pk_bint_id\n      FROM stock_transfer\n      WHERE vchr_stktransfer_num = '{{transfer}}'\n  );\n\nCOMMIT;"
+      },
+      {
+        "id": "q_tr_2",
+        "sectionId": "sec-transfer",
+        "title": "Branch Stock Using Transfer Num (Full IMEI Layer)",
+        "purpose": "Full inspection of IMEI, branch_stock_details, ist_details and stock_transfer_imei_details linked to a transfer number and batch. Use for deep stock mismatch investigation.",
+        "steps": "1. Enter Transfer # and Batch/IMEI\n2. Run each SELECT to check each table layer\n3. Use UPDATE comments as a guide for fixes",
+        "sql": "-- branch stock imei details\nSELECT bsid.* FROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN branch_stock_imei_details bsid ON bsid.fk_details_id = bsd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND bsid.jsn_imei -> 'imei' ? '{{batch}}';\n\n-- branch stock details\nSELECT bsd.* FROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND bsd.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND bsd.jsn_imei -> 'imei' ? '{{batch}}';\n\n-- ist details\nSELECT isd.* FROM stock_transfer st\nJOIN ist_details isd ON isd.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = isd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND isd.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND isd.jsn_imei -> 'imei' ? '{{batch}}';\n\n-- stock_transfer imei details\nSELECT stid.* FROM stock_transfer st\nJOIN ist_details isd ON isd.fk_transfer_id = st.pk_bint_id\nJOIN stock_transfer_imei_details stid ON stid.fk_details_id = isd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND stid.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND stid.jsn_imei -> 'imei' ? '{{batch}}';\n\nSELECT bsd.*\nFROM branch_stock_details bsd\nWHERE bsd.jsn_imei -> 'imei' ? '{{batch}}'\n   OR bsd.jsn_batch_no -> 'batch' ? '{{batch}}';\n\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nWHERE bsid.jsn_imei -> 'imei' ? '{{batch}}'\n   OR bsid.jsn_batch_no -> 'batch' ? '{{batch}}';"
+      },
+      {
+        "id": "q_tr_3",
+        "title": "Fix IST / BSD Qty Mismatch (BEGIN/COMMIT Flow)",
+        "purpose": "When int_qty in ist_details does not match int_received in branch_stock_details or branch_stock_imei_details. Detects and fixes mismatches at both BSD and IMEI layers.",
+        "steps": "1. Enter Transfer # and Batch/IMEI\n2. Run step 1 (detect) to see mismatches\n3. Run step 2 UPDATE for BSD fix\n4. Run step 3 to verify BSD\n5. Run step 4-5 for IMEI layer\n6. COMMIT or ROLLBACK",
+        "sql": "BEGIN;\n\n-- 1. Detect mismatch between IST and Branch Stock Details\nSELECT st.vchr_stktransfer_num, id.pk_bint_id AS ist_details_id,\n    (id.jsn_batch_no -> 'batch' ->> 0) AS batch_no,\n    id.int_qty, bsd.int_received\nFROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsd.int_received;\n\n-- 2. Fix mismatch in Branch Stock Details\nUPDATE branch_stock_details bsd SET int_received = id.int_qty\nFROM stock_transfer st JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nWHERE bsd.fk_transfer_details_id = id.pk_bint_id\nAND st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsd.int_received;\n\n-- 3. Detect IMEI layer mismatch\nSELECT st.vchr_stktransfer_num, id.pk_bint_id AS ist_details_id,\n    bsid.pk_bint_id AS imei_detail_id,\n    (id.jsn_batch_no -> 'batch' ->> 0) AS batch_no, id.int_qty, bsid.int_received\nFROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN branch_stock_imei_details bsid ON bsid.fk_details_id = bsd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsid.int_received;\n\n-- 4. Fix IMEI mismatch (SAFE ONLY IF 1 IMEI ROW PER DETAIL)\nUPDATE branch_stock_imei_details bsid SET int_received = id.int_qty\nFROM stock_transfer st JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE bsid.fk_details_id = bsd.pk_bint_id\nAND st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsid.int_received;\n\n-- If everything looks correct: COMMIT;\n-- If anything looks wrong:    ROLLBACK;",
+        "sectionId": "sec-transfer"
+      },
+      {
+        "id": "q_grn_1",
+        "title": "GRN Updates (Totals, Cost Price, Supplier)",
+        "purpose": "Fix GRN issues \u2014 update total amount, item cost price, or supplier on a GRN. Also checks for Goods Return issues.",
+        "steps": "1. Enter GRN # and Item Code\n2. Run SELECT to verify the GRN exists\n3. Run the specific UPDATE needed\n4. Verify the change",
+        "sql": "SELECT * FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}');\nSELECT * FROM grn_details WHERE fk_purchase_id = (SELECT pk_bint_id FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}')) AND fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\n-- Update total\nUPDATE grn_master SET dbl_total = 140934 WHERE vchr_purchase_num IN ('{{grn}}');\n\n-- Update specific item cost in GRN\nUPDATE grn_details SET dbl_costprice = 1219.49, dbl_ppu = 1219.49 \nWHERE fk_purchase_id = (SELECT pk_bint_id FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}')) \nAND fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\n-- Update Supplier\nUPDATE grn_master SET fk_supplier_id = (SELECT pk_bint_id FROM supplier WHERE vchr_code = 'V10951') WHERE vchr_purchase_num IN ('{{grn}}');\n\n-- Goods Return\nSELECT * FROM grnr_master WHERE vchr_purchase_return_num = '{{grn}}';\n\n-- Check GR Return Details\nWITH target AS (\n    SELECT d.pk_bint_id, d.int_qty FROM grnr_details d\n    JOIN grnr_master m ON m.pk_bint_id = d.fk_master_id\n    WHERE m.vchr_purchase_return_num = '{{grn}}'\n      AND d.vchr_batch_no LIKE '%' || '{{batch}}' || '%'\n)\nSELECT * FROM grnr_details WHERE pk_bint_id IN (SELECT pk_bint_id FROM target);",
+        "sectionId": "sec-grn"
+      },
+      {
+        "id": "q_grn_2",
+        "title": "GRN 500 Error Fix (Infinity/NaN values)",
+        "purpose": "When the GRN list throws a 500 server error, this query checks for Infinity, -Infinity, or NaN float values in grn_details which cause the error.",
+        "steps": "1. Run the SELECT to find the bad rows\n2. Note the pk_bint_id of affected rows\n3. Update those rows with a correct value",
+        "sql": "SELECT * FROM grn_details\nWHERE dbl_dscnt_percent IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)\n   OR dbl_dscnt_perunit IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)\n   OR dbl_discount      IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)\n   OR dbl_costprice     IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float);",
+        "sectionId": "sec-grn"
+      },
+      {
+        "id": "q_job_1",
+        "sectionId": "sec-job",
+        "title": "Job Master & Service Items Lookup",
+        "purpose": "Full lookup of a job card \u2014 job header, associated service items, and linked enquiry. Use when a job card is stuck or service items are not showing correctly.",
+        "steps": "1. Enter Job # \n2. Run SELECT on job_master to check job status\n3. Run SELECT on item_service to see all service items linked\n4. Check status and closed_date fields for anomalies",
+        "sql": "SELECT * FROM job_master WHERE vchr_job_num IN ('{{job}}');\n\nSELECT * FROM item_service WHERE fk_job_master_id = (\n  SELECT pk_bint_id FROM job_master WHERE vchr_job_num IN ('{{job}}')\n);\n\nSELECT * FROM enquiry_master WHERE vchr_enquiry_num IN ('{{enquiry}}');\n\nSELECT jm.*, em.vchr_enquiry_num \nFROM job_master jm \nLEFT JOIN enquiry_master em ON jm.fk_enquiry_id = em.pk_bint_id\nWHERE jm.vchr_job_num IN ('{{job}}');\n\n\n--TO REMOVE SPARE \n-- 1. Verify service spare JSON\nSELECT pk_bint_id, jsn_purchase_spare\nFROM item_service\nWHERE fk_job_master_id = (\n    SELECT pk_bint_id\n    FROM job_master\n    WHERE vchr_job_num = '{{job}}'\n);\n\n-- 2. Verify spare detail row\nSELECT *\nFROM job_spare_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM item_service\n    WHERE fk_job_master_id = (\n        SELECT pk_bint_id\n        FROM job_master\n        WHERE vchr_job_num = '{{job}}'\n    )\n)\nAND vchr_imei = '{{imei}}';\n\n-- =================================\n-- UPDATE / DELETE BLOCK\n-- =================================\n\nBEGIN;\n\n-- Remove from JSON spare list\nUPDATE item_service\nSET jsn_purchase_spare = (\n    SELECT jsonb_agg(elem)\n    FROM jsonb_array_elements(jsn_purchase_spare::jsonb) elem\n    WHERE NOT (\n        elem->>'itemCode' = '{{item_code}}'\n        AND elem->'lstAllImei' @> to_jsonb(ARRAY['{{imei}}'])\n    )\n)\nWHERE fk_job_master_id = (\n    SELECT pk_bint_id\n    FROM job_master\n    WHERE vchr_job_num = '{{job}}'\n);\n\n-- Remove from spare details table\nDELETE FROM job_spare_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM item_service\n    WHERE fk_job_master_id = (\n        SELECT pk_bint_id\n        FROM job_master\n        WHERE vchr_job_num = '{{job}}'\n    )\n)\nAND vchr_imei = '{{imei}}';\n\nCOMMIT;\n\n-- 3. Final verification\nSELECT pk_bint_id, jsn_purchase_spare\nFROM item_service\nWHERE fk_job_master_id = (\n    SELECT pk_bint_id\n    FROM job_master\n    WHERE vchr_job_num = '{{job}}'\n);\n\nSELECT *\nFROM job_spare_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM item_service\n    WHERE fk_job_master_id = (\n        SELECT pk_bint_id\n        FROM job_master\n        WHERE vchr_job_num = '{{job}}'\n    )\n);"
+      },
+      {
+        "id": "q_misc_1",
+        "title": "Item Master Lookup",
+        "purpose": "Find an item record by code. Useful to get the internal pk_bint_id, or to verify item details like name, category and status.",
+        "steps": "1. Enter Item Code\n2. Run the SELECT to get item details\n3. Note the pk_bint_id if needed for a manual UPDATE",
+        "sql": "SELECT pk_bint_id, vchr_item_code, vchr_item_name, int_active FROM item WHERE vchr_item_code = '{{item}}';\nSELECT * FROM item WHERE vchr_item_code = '{{item}}';",
+        "sectionId": "sec-misc"
+      },
+      {
+        "id": "q_srv_1",
+        "title": "When New Release \u2014 Deployment Steps (POS + BI)",
+        "purpose": "Step-by-step shell commands to deploy a new release for POS and BI. Copy files, set permissions, update settings.",
+        "steps": "1. SSH into the server\n2. Copy files from the new release folder\n3. Set permissions with chmod\n4. Edit settings.py if needed\n5. Restart uwsgi",
+        "sql": "chown -R www-data:www-data /home/Projects/Backend/TBS/ (For Future POS)\n\n# POS - copy files (also give permission chmod 777 -R cd filename)\n# settings.py | webversion.txt | posting_issues.txt | payment_issues.txt | transfer_issue.txt | log\n\ncp ../TBS_16_03_2026/POS/settings.py ./POS/\ncp ../TBS_16_03_2026/POS/dftosql.py ./POS/\ncp ../TBS_16_03_2026/webversion.txt .\ncp ../TBS_16_03_2026/posting_issues.txt .\ncp ../TBS_16_03_2026/payment_issues.txt .\ncp ../TBS_16_03_2026/transfer_issue.txt .\ncp -r ../TBS_16_03_2026/log .\n\nchmod 777 -R ./POS/settings.py webversion.txt posting_issues.txt payment_issues.txt transfer_issue.txt log \nnano ./POS/settings.py\n\nchown www-data:www-data /var/log/uwsgi/tbs.log\nchmod 664 /var/log/uwsgi/tbs.log\n\n# BI\ncp ../bisuite_mob_16_03_2026/CRM/settings.py ./CRM/settings.py \ncp ../bisuite_mob_16_03_2026/mobileappversion.txt ./\ncp -r ../bi_python_16_03_2026/log/ .\nchmod 777 -R ./POS/settings.py webversion.txt log",
+        "sectionId": "sec-server"
+      },
+      {
+        "id": "q_srv_2",
+        "title": "uwsgi Config File",
+        "purpose": "Open and edit the uwsgi config for the POS service.",
+        "steps": "1. SSH into server\n2. Run this command to open the config",
+        "sql": "nano uwsgi/sites/pos.ini",
+        "sectionId": "sec-server"
+      },
+      {
+        "id": "q_srv_3",
+        "title": "Auto Mailer Error \u2014 Bad IMEI Format in branch_stock_details",
+        "purpose": "When auto mailer throws an error related to IMEI format, this checks for double-nested IMEI arrays in branch_stock_details/branch_stock_imei_details.",
+        "steps": "1. Run SELECT to find the bad IMEI rows\n2. Note the pk_bint_id\n3. Fix the JSON format in the affected rows",
+        "sql": "SELECT * FROM branch_stock_details WHERE jsn_imei_avail->'imei' @> '[[\"2N1-503PAUR135742II\"]]'::jsonb;\n\nSELECT * FROM branch_stock_details WHERE jsn_imei_avail::text LIKE '%[[%';\n\nSELECT * FROM branch_stock_imei_details WHERE jsn_imei::text LIKE '%[[%';",
+        "sectionId": "sec-server"
+      },
+      {
+        "id": "q_srv_4",
+        "title": "Max Connections (PostgreSQL)",
+        "purpose": "Check PostgreSQL max connections, currently used connections, and remaining available connections for normal users.",
+        "steps": "1. Run this query on the database\n2. Check res_for_normal \u2014 if near 0, connections are maxed out",
+        "sql": "SELECT max_conn,used,res_for_super,max_conn-used-res_for_super res_for_normal \nFROM (SELECT count(*) used FROM pg_stat_activity) t1, \n(SELECT setting::int res_for_super FROM pg_settings WHERE name=$superuser_reserved_connections$) t2, \n(SELECT setting::int max_conn FROM pg_settings WHERE name=$max_connections$) t3;",
+        "sectionId": "sec-server"
+      },
+      {
+        "id": "q-1775029520771",
+        "sectionId": "sec-job",
+        "title": "Job Transfer - acknowlege \u2014 POS API Failure (Spare Item / IMEI Mismatch)",
+        "purpose": "Use when a job transfer acknowledgement fails with \"Something happen with POS\" error. This happens when a spare item in job_spare_details has the wrong item code (fk_item_id) \u2014 the IMEI exists in the from-branch POS stock but under a different item code. Fix is to correct the item on the BI spare record and reset the transfer status.",
+        "steps": "1. Get the Job Transfer # from the technician (e.g. 25-JT-MCL3-19263) and enter it in the {{job_transfer}} input\n2. Switch to BI DB \u2014 Run STEP 1 to get the job transfer record. Note the pk_bint_id, fk_job_master_id, from_branch code, and int_status. If int_status is already 2 and the job is fine, stop here.\n3. Still on BI DB \u2014 Enter the fk_job_master_id value from Step 1 result into {{pk_id}} input. Run STEP 2 to get all spare items linked to this job. Note every vchr_imei and vchr_item_code in the result.\n4. Switch to POS DB \u2014 Enter the from_branch code (e.g. MCL3) into {{br_code}}. Run STEP 3 first query with all item codes from Step 2 result. Check which IMEI is missing or appearing under a different item code than expected.\n5. Still on POS DB \u2014 For any IMEI that did not appear in Step 3 first query, enter that IMEI into {{batch}} and run STEP 3 second query (search by IMEI across all items). This will reveal the actual item code that IMEI is stocked under in POS.\n6. Still on BI DB \u2014 Enter the correct item code (found in Step 5) into {{item}} and run STEP 4 to get the correct BI item id. Note the id value returned.\n7. Switch to POS DB \u2014 Enter the correct item code into {{item}} and the IMEI into {{batch}} and run STEP 5 to confirm the IMEI exists in from-branch stock under the correct item. Must return exactly 1 row. If 0 rows \u2014 stop, do not proceed, escalate for further investigation.\n8. Now identify which case applies:\n   \u2014 CASE A (wrong item): IMEI in BI matches POS but item code is different \u2192 will fix fk_item_id\n   \u2014 CASE B (wrong IMEI): item code matches but IMEI in BI is different from POS \u2192 enter correct IMEI into {{to_batch}}, will fix vchr_imei\n9. Switch to BI DB \u2014 Enter the job_spare_details pk_bint_id of the wrong spare row into {{pk_id}}. Run STEP 6 BEGIN block. Check the before SELECT result carefully.\n10. Run only the relevant UPDATE \u2014 CASE A or CASE B, not both. Check the after SELECT \u2014 fk_item_id should now show correct item id (Case A) or vchr_imei should show correct IMEI (Case B).\n11. If both SELECTs look correct \u2014 run COMMIT. If anything looks wrong \u2014 run ROLLBACK and re-investigate.\n12. Still on BI DB \u2014 Run STEP 7 to reset the job transfer int_status back to 1. Verify before and after SELECTs, then COMMIT. This allows the technician to re-acknowledge the transfer from the app.\n13. Inform the technician to retry the acknowledgement from the app. The POS API should now find the correct IMEI under the correct item in from-branch stock and complete successfully.",
+        "sql": "-- =============================================\n-- STEP 1 (BI DB): Get job transfer record\n-- Input: {{job_transfer}} e.g. 25-JT-MCL3-19263\n-- Note: pk_bint_id, fk_job_master_id, from_branch, int_status\n-- =============================================\nSELECT jt.pk_bint_id, jt.int_status,\n       jt.fk_job_master_id,\n       fb.vchr_code AS from_branch,\n       tb.vchr_code AS to_branch\nFROM job_transfer jt\nJOIN branch fb ON fb.pk_bint_id = jt.fk_from_id\nJOIN branch tb ON tb.pk_bint_id = jt.fk_to_id\nWHERE jt.vchr_doc_num = '{{job_transfer}}';\n\n-- =============================================\n-- STEP 2 (BI DB): Get all spares for this job\n-- Input: {{pk_id}} = fk_job_master_id from Step 1\n-- Note: pk_bint_id, vchr_imei, vchr_item_code for each spare\n-- =============================================\nSELECT jsd.pk_bint_id, jsd.vchr_imei, jsd.fk_item_id,\n       i.vchr_item_code, i.vchr_item_name,\n       jsd.dbl_amount, jsd.dbl_purchase_price\nFROM job_spare_details jsd\nJOIN items i ON i.id = jsd.fk_item_id\nJOIN item_service isc ON isc.pk_bint_id = jsd.fk_details_id\nWHERE isc.fk_job_master_id = {{pk_id}};\n\n-- =============================================\n-- STEP 3 (POS DB): Check from-branch stock for all spare item codes\n-- Input: {{br_code}} = from_branch from Step 1\n--        {{item}}    = item codes from Step 2 (add all codes in the IN list)\n-- Look for any IMEI that is missing or under a different item code\n-- =============================================\nSELECT bsd.pk_bint_id, bsd.int_qty,\n       bsd.jsn_imei_avail,\n       i.vchr_item_code, b.vchr_code AS branch\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm ON bsm.pk_bint_id = bsd.fk_master_id\nJOIN branch b ON b.pk_bint_id = bsm.fk_branch_id\nJOIN item i ON i.pk_bint_id = bsd.fk_item_id\nWHERE b.vchr_code = '{{br_code}}'\nAND i.vchr_item_code IN ('{{item}}')\nAND bsd.int_qty > 0;\n\n-- If an IMEI is missing from above, search by IMEI across all items in that branch:\n-- Input: {{batch}} = the missing IMEI from Step 2\nSELECT bsd.pk_bint_id, bsd.int_qty, bsd.jsn_imei_avail,\n       i.vchr_item_code, b.vchr_code AS branch\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm ON bsm.pk_bint_id = bsd.fk_master_id\nJOIN branch b ON b.pk_bint_id = bsm.fk_branch_id\nJOIN item i ON i.pk_bint_id = bsd.fk_item_id\nWHERE b.vchr_code = '{{br_code}}'\nAND bsd.jsn_imei_avail -> 'imei' ? '{{batch}}'\nAND bsd.int_qty > 0;\n\n-- =============================================\n-- STEP 4 (BI DB): Get correct BI item id for the right item code\n-- Input: {{item}} = correct item code found in POS Step 3 second query\n-- Note the id \u2014 needed for Case A fix in Step 6\n-- =============================================\nSELECT id, vchr_item_code, vchr_item_name\nFROM items\nWHERE vchr_item_code = '{{item}}';\n\n-- =============================================\n-- STEP 5 (POS DB): Verify IMEI exists in from-branch under correct item\n-- Input: {{br_code}} = from_branch\n--        {{item}}    = correct item code from Step 3\n--        {{batch}}   = IMEI in question\n-- MUST return exactly 1 row \u2014 if 0 rows stop and escalate\n-- =============================================\nSELECT bsd.pk_bint_id, bsd.int_qty, bsd.jsn_imei_avail,\n       i.vchr_item_code, b.vchr_code AS branch\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm ON bsm.pk_bint_id = bsd.fk_master_id\nJOIN branch b ON b.pk_bint_id = bsm.fk_branch_id\nJOIN item i ON i.pk_bint_id = bsd.fk_item_id\nWHERE b.vchr_code = '{{br_code}}'\nAND i.vchr_item_code = '{{item}}'\nAND bsd.jsn_imei_avail -> 'imei' ? '{{batch}}'\nAND bsd.int_qty > 0;\n-- Must return exactly 1 row before proceeding to Step 6\n\n-- =============================================\n-- STEP 6 (BI DB): Fix wrong item code OR wrong IMEI on spare record\n-- Input: {{pk_id}}    = job_spare_details pk_bint_id of the wrong spare row\n--        {{item}}     = correct item code (Case A)\n--        {{batch}}    = IMEI on the spare record (Case A safety check)\n--        {{to_batch}} = correct IMEI from POS (Case B)\n-- Run only AFTER Step 5 returns exactly 1 row\n-- Run only ONE case \u2014 Case A or Case B, never both\n-- =============================================\nBEGIN;\n\n-- Verify spare record before touching\nSELECT pk_bint_id, vchr_imei, fk_item_id\nFROM job_spare_details\nWHERE pk_bint_id = {{pk_id}};\n\n-- \u2500\u2500 CASE A: Wrong item code (IMEI is correct, item code is wrong in BI) \u2500\u2500\n-- Use when IMEI matches POS but fk_item_id points to wrong item\nUPDATE job_spare_details\nSET fk_item_id = (SELECT id FROM items WHERE vchr_item_code = '{{item}}')\nWHERE pk_bint_id = {{pk_id}}\nAND vchr_imei = '{{batch}}';  -- safety: IMEI must match\n\n-- \u2500\u2500 CASE B: Wrong IMEI (item code is correct, IMEI was entered wrong in BI) \u2500\u2500\n-- Use when item code matches but IMEI in BI does not match what POS has\n-- Input: {{to_batch}} = correct IMEI from POS Step 5\nUPDATE job_spare_details\nSET vchr_imei = '{{to_batch}}'\nWHERE pk_bint_id = {{pk_id}}\nAND fk_item_id = (SELECT id FROM items WHERE vchr_item_code = '{{item}}');  -- safety: item must match\n\n-- Verify after update\nSELECT pk_bint_id, vchr_imei, fk_item_id\nFROM job_spare_details\nWHERE pk_bint_id = {{pk_id}};\n\n-- ROLLBACK;  -- run if anything looks wrong\n-- COMMIT;    -- run only after both SELECTs look correct\n\n-- =============================================\n-- STEP 7 (BI DB): Reset job transfer status to retry acknowledgement\n-- Input: {{job_transfer}} = job transfer doc number\n-- int_status 1 = pending acknowledgement\n-- int_status 2 = acknowledged (stuck state after POS failure)\n-- Reset to 1 so technician can re-acknowledge from the app\n-- =============================================\nBEGIN;\n\n-- Verify current status\nSELECT pk_bint_id, vchr_doc_num, int_status\nFROM job_transfer\nWHERE vchr_doc_num = '{{job_transfer}}';\n\n-- Reset status\nUPDATE job_transfer\nSET int_status = 1\nWHERE vchr_doc_num = '{{job_transfer}}'\nAND int_status = 2;  -- safety: only reset if currently stuck\n\n-- Verify after reset\nSELECT pk_bint_id, vchr_doc_num, int_status\nFROM job_transfer\nWHERE vchr_doc_num = '{{job_transfer}}';\n\n-- ROLLBACK;  -- if anything looks wrong\n-- COMMIT;    -- only after verifying int_status changed to 1"
+      },
+      {
+        "id": "q-1775040387867",
+        "sectionId": "sec-item-enquiry",
+        "title": "SOME ERROR IN POS When Batch Button Selected",
+        "purpose": "When a batch item is selected in the MyGoal app, the Item Aging  Check API crashes with \"Some error in POS\" error. Root cause  is int_qty saved as NULL in the non_saleable table when a batch item  is marked as non-saleable without a quantity. Fix by setting  int_qty = 1 for all affected records.",
+        "steps": "1. Enter the item code reported by the user in {{item_code}}.\n2. Run the SELECT to confirm NULL int_qty records exist for that item.\n3. Run the UPDATE to fix the NULL quantities.\n4. Re-run the SELECT to confirm 0 rows remain.\n5. Ask the user to retry selecting the batch in the MyGoal app.",
+        "sql": "SELECT \n    ns.pk_bint_id,\n    ns.jsn_non_saleable,\n    ns.int_qty,\n    ns.int_status,\n    ns.int_batch_or_imei,\n    i.vchr_item_code\nFROM non_saleable ns\nJOIN item i ON i.pk_bint_id = ns.fk_item_id\nWHERE ns.int_status = 0 \n  AND ns.int_batch_or_imei = 1\n  AND ns.int_qty IS NULL\n  AND i.vchr_item_code = '{{item_code}}';\n\n\nUPDATE non_saleable \nSET int_qty = 1 \nWHERE int_status = 0 \n  AND int_batch_or_imei = 1 \n  AND int_qty IS NULL\n  AND fk_item_id = (\n    SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item_code}}'\n  );"
+      },
+      {
+        "id": "q-1775463610918",
+        "sectionId": "sec-transfer",
+        "title": "delete  Duplicate transfer",
+        "purpose": "to deletre duplicate stock transfer",
+        "steps": "",
+        "sql": "BEGIN;\n\n-- 1. Preview stock_transfer_imei_details\nSELECT stimd.*\nFROM stock_transfer_imei_details stimd\nJOIN ist_details id\n  ON stimd.fk_details_id = id.pk_bint_id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 1. Delete stock_transfer_imei_details\nDELETE FROM stock_transfer_imei_details stimd\nUSING stock_transfer st\nJOIN ist_details id\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE stimd.fk_details_id = id.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 2. Preview branch_stock_imei_details\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd\n  ON bsid.fk_details_id = bsd.pk_bint_id\nJOIN ist_details id\n  ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 2. Delete branch_stock_imei_details\nDELETE FROM branch_stock_imei_details bsid\nUSING stock_transfer st\nJOIN ist_details id\n  ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd\n  ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE bsid.fk_details_id = bsd.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 3. Preview branch_stock_details\nSELECT bsd.*\nFROM branch_stock_details bsd\nJOIN ist_details id\n  ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 3. Delete branch_stock_details\nDELETE FROM branch_stock_details bsd\nUSING stock_transfer st\nJOIN ist_details id\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE bsd.fk_transfer_details_id = id.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 4. Preview IST details\nSELECT id.*\nFROM ist_details id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 4. Delete IST details\nDELETE FROM ist_details id\nUSING stock_transfer st\nWHERE id.fk_transfer_id = st.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 5. Preview transfer_mode_details\nSELECT tmd.*\nFROM transfer_mode_details tmd\nJOIN stock_transfer st\n  ON tmd.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 5. Delete transfer_mode_details\nDELETE FROM transfer_mode_details tmd\nUSING stock_transfer st\nWHERE tmd.fk_transfer_id = st.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 6. Preview transfer_history\nSELECT th.*\nFROM transfer_history th\nJOIN stock_transfer st\n  ON th.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 6. Delete transfer_history\nDELETE FROM transfer_history th\nUSING stock_transfer st\nWHERE th.fk_transfer_id = st.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 7. Preview stock_transfer master\nSELECT *\nFROM stock_transfer\nWHERE vchr_stktransfer_num = '{{transfer}}';\n\n-- 7. Delete stock_transfer master\nDELETE FROM stock_transfer\nWHERE vchr_stktransfer_num = '{{transfer}}';\n\nCOMMIT;"
+      },
+      {
+        "id": "q-1775475599476",
+        "sectionId": "sec-1775475515173",
+        "title": "non saleable records",
+        "purpose": "to find out the non saleable records",
+        "steps": "",
+        "sql": "SELECT * \nFROM non_saleable \nWHERE jsn_non_saleable @> format('[\"%s\"]', '{{imei_or_batch}}')::jsonb\nORDER BY pk_bint_id DESC;\n\n\nUPDATE non_saleable \nSET \n    jsn_status_change = COALESCE(jsn_status_change, '[]'::jsonb) \n                        || format('[\"%s\"]', '{{imei_or_batch}}')::jsonb,\n    int_status = 1,\n    dat_updated = NOW(),\n    vchr_remarks = COALESCE(vchr_remarks, '') \n                   || E'\\nMarked as saleable on ' || TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI')\nWHERE jsn_non_saleable @> format('[\"%s\"]', '{{imei_or_batch}}')::jsonb\n  AND int_status = 0\n  AND NOT (jsn_status_change @> format('[\"%s\"]', '{{imei_or_batch}}')::jsonb);"
+      },
+      {
+        "id": "q-1775558118821",
+        "sectionId": "sec-1775558024493",
+        "title": "Add Ledger Mapping Entry",
+        "purpose": "This query is used to create a new Chart of Account entry and map it to a module/category for a specific branch. Use this when adding new ledger mappings dynamically.",
+        "steps": "",
+        "sql": "INSERT INTO chart_of_accounts (vchr_acc_code, vchr_acc_name) \nVALUES ('{{account_code}}', '{{account_name}}');\n\nINSERT INTO accounts_map \n(vchr_module_name, vchr_category, fk_coa_id, int_status, int_type, fk_branch_id) \nVALUES (\n    '{{module_name}}',\n    '{{category}}',\n    (SELECT pk_bint_id FROM chart_of_accounts WHERE vchr_acc_code='{{account_code}}'),\n    {{status}},\n    {{type}},\n    {{branch_id}}\n);"
+      },
+      {
+        "id": "q-1775724771617",
+        "sectionId": "sec-grn",
+        "title": "GOODS RETURN UPDATE",
+        "purpose": "Use when extra goods return happens and GR return quantity needs correction in both detail and IMEI tables.",
+        "steps": "Step-by-step instructions\nEnter the GR Return Number\nEnter the Batch Number\nEnter the Correct Quantity\nRun the SELECT queries first for verification\nConfirm the batch + IMEI rows\nRun the UPDATE block\nRe-run SELECT to verify updated qty",
+        "sql": "-- 1. Verify GR Return Master\nSELECT *\nFROM grnr_master\nWHERE vchr_purchase_return_num = '{{grn}}';\n\n\n-- 2. Verify GR Return Details\nSELECT *\nFROM grnr_details\nWHERE fk_master_id = (\n    SELECT pk_bint_id\n    FROM grnr_master\n    WHERE vchr_purchase_return_num = '{{grn}}'\n)\nAND vchr_batch_no LIKE '%{{batch}}%';\n\n\n-- 3. Verify IMEI Details\nSELECT *\nFROM grnr_imei_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM grnr_details\n    WHERE fk_master_id = (\n        SELECT pk_bint_id\n        FROM grnr_master\n        WHERE vchr_purchase_return_num = '{{grn}}'\n    )\n    AND vchr_batch_no LIKE '%{{batch}}%'\n);\n\n\n-- 4. Update Quantity in Goods Return Detail + IMEI\nBEGIN;\n\nUPDATE grnr_details\nSET int_qty = {{qty}}\nWHERE fk_master_id = (\n    SELECT pk_bint_id\n    FROM grnr_master\n    WHERE vchr_purchase_return_num = '{{grn}}'\n)\nAND vchr_batch_no LIKE '%{{batch}}%';\n\n\nUPDATE grnr_imei_details\nSET int_qty = (\n    SELECT int_qty\n    FROM grnr_details\n    WHERE fk_master_id = (\n        SELECT pk_bint_id\n        FROM grnr_master\n        WHERE vchr_purchase_return_num = '{{grn}}'\n    )\n    AND vchr_batch_no LIKE '%{{batch}}%'\n)\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM grnr_details\n    WHERE fk_master_id = (\n        SELECT pk_bint_id\n        FROM grnr_master\n        WHERE vchr_purchase_return_num = '{{grn}}'\n    )\n    AND vchr_batch_no LIKE '%{{batch}}%'\n);\n\nCOMMIT;"
+      },
+      {
+        "id": "q-1776072337681",
+        "sectionId": "sec-1776072089602",
+        "title": "Fix Receipt Linked to Wrong Customer (Duplicate Mobile)",
+        "purpose": "When a receipt is billed under a duplicate/wrong customer (same mobile number),  this query reassigns both the receipt and its transaction to the correct customer.",
+        "steps": "1. Fill in the first two variables:\n   - mobile_number  \u2192 customer mobile (e.g. 9947771188)\n   - receipt_number \u2192 the RV number (e.g. 25-RV-PMF-19236)\n\n2. Run Step 1 \u2014 lists all customers with that mobile number\n   \u2192 CORRECT customer:  usually int_cust_type = 4, full proper name\n   \u2192 WRONG customer:    usually int_cust_type = 0, generic/partial name\n   \u2192 Note down both pk_bint_id values\n\n3. Run Step 2 \u2014 confirms receipt exists and shows current wrong customer\n\n4. Run Step 3 \u2014 confirms transaction is also under wrong customer\n\n5. Now fill the remaining two variables:\n   - correct_customer_id \u2192 pk_bint_id of intended customer (e.g. 200100)\n   - wrong_customer_id   \u2192 pk_bint_id of duplicate customer (e.g. 170477)\n\n6. Run Steps 4 & 5 (BEGIN block) \u2014 applies fix to both receipt and transaction\n\n7. Run Step 6 \u2014 verify both receipt and transaction now show \n   the correct customer name and ID\n\n8. If Step 6 output looks correct:\n   \u2192 Uncomment COMMIT and run\n\n9. If anything looks wrong:\n   \u2192 Run ROLLBACK immediately to undo all changes\n\n10. Ask the user to recheck the ledger \u2014 the RV should now appear",
+        "sql": "-- Step 1: Find all customers with the same mobile number\nSELECT \n    pk_bint_id,\n    vchr_name,\n    int_mobile,\n    int_cust_type,\n    dat_exp\nFROM customer_details \nWHERE int_mobile = {{mobile_number}};\n\n-- Step 2: Find the receipt and its current customer\nSELECT \n    r.pk_bint_id,\n    r.vchr_receipt_num,\n    r.fk_customer_id,\n    cd.vchr_name AS current_customer,\n    cd.int_cust_type,\n    cd.int_mobile\nFROM receipt r\nJOIN customer_details cd ON cd.pk_bint_id = r.fk_customer_id\nWHERE r.vchr_receipt_num = '{{receipt_number}}';\n\n-- Step 3: Check the linked transaction\nSELECT \n    t.pk_bint_id,\n    t.int_accounts_id,\n    cd.vchr_name AS transaction_customer,\n    t.int_account_type,\n    t.dat_created::date,\n    t.fk_branch_id\nFROM transaction t\nJOIN customer_details cd ON cd.pk_bint_id = t.int_accounts_id\nWHERE t.int_document_id = (\n    SELECT pk_bint_id FROM receipt \n    WHERE vchr_receipt_num = '{{receipt_number}}'\n)\nAND t.int_document_type = 1;\n\n-- \u26a0\ufe0f STOP \u2014 Verify Steps 1,2,3 before proceeding\n-- Fill correct_customer_id and wrong_customer_id from above results\n-- Then run the block below\n\nBEGIN;\n\n-- Step 4: Update receipt to correct customer\nUPDATE receipt \nSET fk_customer_id = {{correct_customer_id}}\nWHERE vchr_receipt_num = '{{receipt_number}}'\nAND fk_customer_id = {{wrong_customer_id}};\n\n-- Step 5: Update transaction to correct customer\nUPDATE transaction \nSET int_accounts_id = {{correct_customer_id}}\nWHERE int_document_id = (\n    SELECT pk_bint_id FROM receipt \n    WHERE vchr_receipt_num = '{{receipt_number}}'\n)\nAND int_document_type = 1\nAND int_accounts_id = {{wrong_customer_id}};\n\n-- Step 6: Verify AFTER update (confirm before committing)\nSELECT \n    r.pk_bint_id,\n    r.vchr_receipt_num,\n    r.fk_customer_id,\n    cd.vchr_name AS updated_receipt_customer,\n    cd.int_cust_type,\n    t.pk_bint_id AS transaction_id,\n    t.int_accounts_id AS updated_transaction_customer,\n    t.int_account_type,\n    t.dat_created::date\nFROM receipt r\nJOIN customer_details cd ON cd.pk_bint_id = r.fk_customer_id\nJOIN transaction t ON t.int_document_id = r.pk_bint_id \n    AND t.int_document_type = 1\n    AND t.int_accounts_id = {{correct_customer_id}}\nWHERE r.vchr_receipt_num = '{{receipt_number}}';\n\n-- Step 7: If Step 6 looks correct \u2192 COMMIT, else \u2192 ROLLBACK\nCOMMIT;\n-- ROLLBACK;"
+      }
+    ],
+    "inputs": [
+      {
+        "key": "enquiry",
+        "label": "Enquiry #",
+        "placeholder": "e.g. 25-ENQ-VMF-30977"
+      },
+      {
+        "key": "job",
+        "label": "Job #",
+        "placeholder": "e.g. 25-JOB-KPY-0949"
+      },
+      {
+        "key": "invoice",
+        "label": "Invoice #",
+        "placeholder": "e.g. 25-I-VMF-28819"
+      },
+      {
+        "key": "branch",
+        "label": "Branch Name",
+        "placeholder": "e.g. HARIPAD FUTURE"
+      },
+      {
+        "key": "br_code",
+        "label": "Branch Code",
+        "placeholder": "e.g. HPF"
+      },
+      {
+        "key": "item",
+        "label": "Item Code",
+        "placeholder": "e.g. AC01788"
+      },
+      {
+        "key": "item2",
+        "label": "Item Code 2 (To)",
+        "placeholder": "TO ITEM"
+      },
+      {
+        "key": "batch",
+        "label": "Batch / IMEI",
+        "placeholder": "e.g. 26PNG0189710990"
+      },
+      {
+        "key": "to_batch",
+        "label": "To Batch/IMEI",
+        "placeholder": "Replacement IMEI"
+      },
+      {
+        "key": "transfer",
+        "label": "Transfer #",
+        "placeholder": "e.g. 25-T-POLE-6276"
+      },
+      {
+        "key": "grn",
+        "label": "GRN #",
+        "placeholder": "e.g. 25-GRN-NKF-2384"
+      },
+      {
+        "key": "purchase",
+        "label": "Purchase #",
+        "placeholder": "e.g. 25-GRN-NKF-2384"
+      },
+      {
+        "key": "receipt",
+        "label": "Receipt #",
+        "placeholder": "e.g. 25-RV-TDF-17055"
+      },
+      {
+        "key": "job_transfer",
+        "label": "Job Transfer #",
+        "placeholder": "e.g. 25-JT-MCL3-18473"
+      },
+      {
+        "key": "loyalty_id",
+        "label": "Loyalty ID",
+        "placeholder": "Member card/ID"
+      },
+      {
+        "key": "pk_id",
+        "label": "PK / Row ID",
+        "placeholder": "Primary key value"
+      },
+      {
+        "key": "acc_code",
+        "label": "Account Code",
+        "placeholder": "e.g. ACC-001"
+      },
+      {
+        "key": "accno",
+        "label": "Account Number",
+        "placeholder": "e.g. 101010201199"
+      },
+      {
+        "key": "brid",
+        "label": "Branch ID",
+        "placeholder": "e.g. 265"
+      },
+      {
+        "key": "phone",
+        "label": "Phone",
+        "placeholder": "e.g. 9876543210"
+      },
+      {
+        "key": "customer",
+        "label": "Customer ID",
+        "placeholder": "e.g. 3799234"
+      },
+      {
+        "key": "tocustomer",
+        "label": "To Customer ID",
+        "placeholder": "e.g. 3799234"
+      },
+      {
+        "key": "qty",
+        "label": "Quantity",
+        "placeholder": "e.g. 10"
+      },
+      {
+        "key": "item_code",
+        "label": "item_code",
+        "placeholder": "item_code"
+      },
+      {
+        "key": "imei_or_batch",
+        "label": "imei_or_batch",
+        "placeholder": "imei_or_batch"
+      },
+      {
+        "key": "value",
+        "label": "value",
+        "placeholder": "value"
+      },
+      {
+        "key": "bsd_id",
+        "label": "bsd_id",
+        "placeholder": "bsd_id"
+      },
+      {
+        "key": "new_qty",
+        "label": "new_qty",
+        "placeholder": "new_qty"
+      },
+      {
+        "key": "bsid_id",
+        "label": "bsid_id",
+        "placeholder": "bsid_id"
+      },
+      {
+        "key": "account_code",
+        "label": "account_code",
+        "placeholder": "account_code"
+      },
+      {
+        "key": "account_name",
+        "label": "account_name",
+        "placeholder": "account_name"
+      },
+      {
+        "key": "module_name",
+        "label": "module_name",
+        "placeholder": "module_name"
+      },
+      {
+        "key": "category",
+        "label": "category",
+        "placeholder": "category"
+      },
+      {
+        "key": "status",
+        "label": "status",
+        "placeholder": "status"
+      },
+      {
+        "key": "type",
+        "label": "type",
+        "placeholder": "type"
+      },
+      {
+        "key": "branch_id",
+        "label": "branch_id",
+        "placeholder": "branch_id"
+      },
+      {
+        "key": "imei",
+        "label": "imei",
+        "placeholder": "imei"
+      },
+      {
+        "key": "mobile_number",
+        "label": "mobile_number",
+        "placeholder": "mobile_number"
+      },
+      {
+        "key": "receipt_number",
+        "label": "receipt_number",
+        "placeholder": "receipt_number"
+      },
+      {
+        "key": "correct_customer_id",
+        "label": "correct_customer_id",
+        "placeholder": "correct_customer_id"
+      },
+      {
+        "key": "wrong_customer_id",
+        "label": "wrong_customer_id",
+        "placeholder": "wrong_customer_id"
+      }
+    ],
+    "configs": {},
+    "inputHistory": {
+      "sec-stock:branch": [
+        "TEST"
+      ],
+      "sec-stock:br_code": [
+        "VMF",
+        "RIG02119",
+        "NBF",
+        "TEST"
+      ],
+      "sec-stock:item": [
+        "RIG02119",
+        "ABGN04694",
+        "TEST"
+      ],
+      "sec-job:job_transfer": [
+        "25-JT-MCL3-19263"
+      ],
+      "sec-job:pk_id": [
+        "1121660"
+      ],
+      "sec-job:br_code": [
+        "MCL3"
+      ],
+      "sec-job:item": [
+        "DSP01353",
+        "DSP22886', 'DSP00867', 'DSP16286', 'DSP22108', 'DSP58793', 'DSP22886",
+        "'DSP22886', 'DSP00867', 'DSP16286', 'DSP22108', 'DSP58793', 'DSP22886'"
+      ],
+      "sec-partial:enquiry": [
+        "25-ENQ-EDY-56133",
+        "25-ENQ-EDY-",
+        "25-ENQ-",
+        "25-ENQ-CMD-24771"
+      ],
+      "sec-partial:job": [
+        "25-JOB-TDF-2688",
+        " 25-JOB-TDF-2689",
+        "25-GDOT-TPTM-0036"
+      ],
+      "sec-sales:invoice": [
+        "25-I-3GH-1848",
+        "25-SR-3GH-0153",
+        "25-I-TDP-1253",
+        "24-S-MCL3-5988",
+        "25-I-EDY-66372",
+        "25-I-EDY-66405",
+        "25-I-EPF-19536",
+        "25-I-KGF-49530",
+        "25-I-POT-96393",
+        "25-I-TPF-45459",
+        "25-I-TDF-64190",
+        "25-I-KGF-52670",
+        "25-I-KYF-36830",
+        "25-I-KYF-",
+        "25-I-NBF-32342"
+      ],
+      "sec-sales:item": [
+        "AC01363",
+        "AC01362",
+        "RIG02119",
+        "CRC01206",
+        "ABGN07001",
+        "STB00027",
+        "ABGN04694"
+      ],
+      "sec-sales:batch": [
+        "3712758004889J",
+        "37105380074151",
+        "3712758004892D",
+        "37105380068356",
+        "KSTM11-62F9770",
+        "KSTM11-58A24234/1",
+        "KSTM11-58A5934/1",
+        "26CRC0120610074",
+        "26ABGN0700110093",
+        "26STB0002710039",
+        "26PRC0038211503",
+        "26ABGN0469410367"
+      ],
+      "sec-sales:to_batch": [
+        "37127580008200",
+        "3710538004307+",
+        "37105380040390",
+        "37127580008288",
+        "KSTM11-62F11209",
+        "KSTM11-58A5934/1",
+        "KSTM11-58A24234/1",
+        "26CRC0120610141",
+        "26ABGN0700110099",
+        "26STB0002700069",
+        "26PRC0038211511",
+        "26ABGN0469410411"
+      ],
+      "sec-stock:batch": [
+        "KSTM11-62F7648",
+        "NQ4-512PAAJ085464II",
+        "26ABGN0469410411"
+      ],
+      "sec-transfer:transfer": [
+        "26-CS-MCL3-0001",
+        "25-BS-WHO3-0058",
+        "26-T-HPFG-0269",
+        "25-BS-VDF-0015",
+        "25-BS-WHO3-0058','25-BS-MCH-0008",
+        "25-T-WHO1-157860",
+        "25-T-WHO1-116543",
+        "25-T-OLG-16891",
+        "25-T-BLF-4466",
+        "26-T-TMF-0030"
+      ],
+      "sec-transfer:batch": [
+        "26PNG0314610357",
+        "26PRC0038211511",
+        "NQ4-512PAAJ085464II",
+        "26ABGN0611910099",
+        "26ABGN0611910094"
+      ],
+      "sec-grn:grn": [
+        "25-GR-WHO1-1040",
+        " 25-GR-WHO1-1197",
+        "25-GRN-NKF-2384"
+      ],
+      "sec-grn:item": [
+        "AC01788"
+      ],
+      "sec-1775475515173:imei_or_batch": [
+        "0322712601270101M7"
+      ],
+      "sec-sales:br_code": [
+        "EDY",
+        "EPF",
+        "KGF",
+        "POT",
+        "TPF",
+        "TDF"
+      ],
+      "sec-sales:value": [
+        "26STB0002700069"
+      ],
+      "sec-sales:bsd_id": [
+        "8083754",
+        "7913647",
+        "8065833"
+      ],
+      "sec-sales:new_qty": [
+        "69",
+        "5"
+      ],
+      "sec-sales:bsid_id": [
+        "8034508",
+        "8188035"
+      ],
+      "sec-1775558024493:account_code": [
+        "102020101267"
+      ],
+      "sec-1775558024493:account_name": [
+        "Stock-in-hand - INFRA SUPPORT WAREHOUSE"
+      ],
+      "sec-1775558024493:module_name": [
+        "PAYMENT"
+      ],
+      "sec-1775558024493:category": [
+        "Stock-in-hand - INFRA SUPPORT WAREHOUSE"
+      ],
+      "sec-1775558024493:status": [
+        "0"
+      ],
+      "sec-1775558024493:type": [
+        "1"
+      ],
+      "sec-1775558024493:branch_id": [
+        "267"
+      ],
+      "sec-grn:batch": [
+        "25PNG0286510359",
+        "25PERF0001210044"
+      ],
+      "sec-grn:qty": [
+        "4"
+      ],
+      "sec-job:job": [
+        " 26-JOB-PUT-0012",
+        "26-JOB-PUT-0012"
+      ],
+      "sec-job:imei": [
+        "DSPPUT-1256"
+      ],
+      "sec-job:item_code": [
+        "DSP59240"
+      ],
+      "sec-transfer:item": [
+        "PNG03146"
+      ]
+    },
+    "versions": [],
+    "notes": [
+      {
+        "id": "n1778309523269",
+        "title": "MYG SCREENS",
+        "content": "===========================================================================PostgreSQL====================================================================================================================\n/etc/init.d/postgresql restart\n\n================================================================================EQT======================================================================================================================\n\ncd /home/BI/EQT/bisuite_mob\nsource /home/BI/env/bin/activate\n\nuwsgi --socket /tmp/mobile_bi_python.sock --chdir /home/BI/EQT/bisuite_mob/ --wsgi-file /home/BI/EQT/bisuite_mob/CRM/wsgi.py --chmod-socket=777 --virtualenv /home/BI/env/ --master --processes 80 --threads 12\n\n\n=================================================================================BI======================================================================================================================\ncd /home/BI/BiSuite/bi_python\nsource /home/BI/env/bin/activate\n\nuwsgi --socket /tmp/bi_python.sock --chdir /home/BI/BiSuite/bi_python/ --wsgi-file /home/BI/BiSuite/bi_python/CRM/wsgi.py --chmod-socket=777 --virtualenv /home/BI/env/ --master --processes 92 --threads 12\n\n\n=================================================================================CELERY - BI===========================================================================================================\ncd /home/BI/BiSuite/bi_python\nsource /home/BI/env/bin/activate\n\ncelery -A CRM.celery worker -l DEBUG -E\n\n\n=====================================================================================POS=================================================================================================================\nsystemctl stop pos.service\ncd /home/POS/Backend/TBS\nchmod 777 -R log\nsystemctl start pos.service\n\n===================================================================================CELERY -POS=========================================================================================================\ncd /home/POS/Backend/TBS\nsource /home/POS/env/bin/activate\ncelery -A POS.celery worker -l INFO -E --concurrency=30\n\n\ncelery -A POS.celery worker -l DEBUG -E\n\n====================================================================================TBS -4444==========================================================================================================\ncd /home/POS/Backend/POS_TEST_ARUN/TBS\nsource /home/POS/env/bin/activate\npython manage.py runserver 0.0.0.0:5555\n\n======================================================================================SERVE==============================================================================================================\ncd /home/POS/Data\nsource /home/POS/env/bin/activate\npython3 -m http.server\n\n=====================================================================================INTEGRATION==========================================================================================================\n\ncd /home/POS/Backend/sap_api_integration/MYG_INDIA/BACKDATE_INTEGRTION\nsource /home/POS/env/bin/activate\npython mygoal_integration_clearing.py\n\n=====================================================================================REDIS -POS AND BI=================================================================================================\nsystemctl status redis.service\nsystemctl start redis.service\n\n======================================================================================CHAT - BI========================================================================================================\nsystemctl status chat.service\nsystemctl start chat.service\n\n==================================================================================================================================================================================================\n\n\n\n\n\n\n\n\n\n\n\n======================================================================================wsgi pos ===========================\nnano /etc/uwsgi/sites/pos.ini\n\n[uwsgi]\nproject = TBS\nbase = /home/POS/Backend\n\nchdir = %(base)/%(project)\n# module = %(project).wsgi:application 56\nmaster = true\nprocesses = 100\nthreads = 12\nsocket = /tmp/myg_pos.sock\nchmod-socket = 666\nuid = www-data\ngid = www-data\nvacuum = true\n\nwsgi-file = /home/POS/Backend/TBS/POS/wsgi.py\n\nmodule = POS.wsgi:application\nvirtualenv = /home/POS/env/\n\n\n----------\nchanged to processes = 88\n\n\n----------------------\n\nchanged to processes =2\nthreads = 4",
+        "created": 1778309523269
+      }
+    ],
+    "scripts": [
+      {
+        "id": "s1775457195678",
+        "name": "vigil_grpo_push.py",
+        "path": "/home/Project/POS/SCRIPTS/V_SCRIPTS",
+        "remark": "to repush grns",
+        "purpose": "clinet provides some grn doc numbers to repush",
+        "steps": "provide the grn doc nums as csv format into the list and push"
+      },
+      {
+        "id": "s1775552948653",
+        "name": "vigil_expenseToSap.py",
+        "path": "/home/Project/POS/SCRIPTS/V_SCRIPTS",
+        "remark": "to push payment",
+        "purpose": "",
+        "steps": ""
+      },
+      {
+        "id": "s1775562473150",
+        "name": "new_mahe_karnataka_stock_transfer_with_bill_api.py  , new_mahe_karnataka_stock_transfer_apinvoice_api.py",
+        "path": "/home/Project/POS/SCRIPTS/SAP_INTEGRATION/BACKDATE_INTEGRTION_MANUAL",
+        "remark": "to push karnataka stock transfer ( Ap invoice & Bill )",
+        "purpose": "",
+        "steps": "in bills take stock transfer pkbintid\n\nin api invoice branch stock master id"
+      },
+      {
+        "id": "s1776334924553",
+        "name": "receipt_repush.py",
+        "path": "/home/Project/POS/SCRIPTS/V_SCRIPTS/receipt_repush.py",
+        "remark": "to re push receipts",
+        "purpose": "cient will provide recipt doc numbers to respush",
+        "steps": ""
+      }
+    ],
+    "pins": [],
+    "activeModule": "sec-partial"
+  }
+}

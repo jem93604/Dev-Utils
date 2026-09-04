@@ -1,0 +1,2312 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SQL Hub V3 — POS Query Center</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&amp;family=Syne:wght@400;600;700;800&amp;display=swap" rel="stylesheet">
+<style>
+/* ── DARK THEME (default) ── */
+:root {
+  --bg:#0d0f14; --bg2:#13161e; --bg3:#1a1e29; --bg4:#222737; --bg5:#2a2f3f;
+  --border:#252a38; --border2:#2f3650;
+  --text:#e2e4ee; --text2:#8b91aa; --text3:#4e5470;
+  --amber:#f0a500; --amber2:#ffbe3d; --amber-dim:rgba(240,165,0,0.1); --amber-glow:rgba(240,165,0,0.18);
+  --cyan:#22d3ee; --cyan-dim:rgba(34,211,238,0.1);
+  --green:#34d399; --green-dim:rgba(52,211,153,0.1);
+  --red:#f87171; --red-dim:rgba(248,113,113,0.1);
+  --blue:#60a5fa; --blue-dim:rgba(96,165,250,0.1);
+  --purple:#a78bfa; --purple-dim:rgba(167,139,250,0.1);
+  --orange:#fb923c; --orange-dim:rgba(251,146,60,0.1);
+  --pink:#f472b6; --pink-dim:rgba(244,114,182,0.1);
+  --kw:#569cd6; --str:#ce9178; --fn:#dcdcaa; --cmt:#5c7a4a; --var-c:#9cdcfe; --num:#b5cea8;
+  --code-bg:#0a0c10;
+}
+/* ── LIGHT THEME ── */
+html.light {
+  --bg:#f0f2f7; --bg2:#ffffff; --bg3:#e8eaf0; --bg4:#dde0ea; --bg5:#d0d4e0;
+  --border:#d0d4e2; --border2:#b8bdd0;
+  --text:#1a1e2e; --text2:#4a5070; --text3:#8a90aa;
+  --amber:#c87800; --amber2:#e08800; --amber-dim:rgba(200,120,0,0.08); --amber-glow:rgba(200,120,0,0.12);
+  --cyan:#0891b2; --cyan-dim:rgba(8,145,178,0.08);
+  --green:#059669; --green-dim:rgba(5,150,105,0.08);
+  --red:#dc2626; --red-dim:rgba(220,38,38,0.08);
+  --blue:#2563eb; --blue-dim:rgba(37,99,235,0.08);
+  --purple:#7c3aed; --purple-dim:rgba(124,58,237,0.08);
+  --orange:#c2410c; --orange-dim:rgba(194,65,12,0.08);
+  --pink:#be185d; --pink-dim:rgba(190,24,93,0.08);
+  --kw:#1d4ed8; --str:#9a3412; --fn:#7c2d12; --cmt:#4d7c0f; --var-c:#1e40af; --num:#065f46;
+  --code-bg:#f8fafc;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;overflow:hidden;}
+body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+/* ── TOP BAR ── */
+.topbar{height:52px;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:50;}
+.topbar-brand{display:flex;align-items:center;gap:9px;font-family:'JetBrains Mono',monospace;font-weight:700;font-size:.9rem;color:var(--amber);letter-spacing:.04em;margin-right:4px;white-space:nowrap;}
+.topbar-brand-icon{width:28px;height:28px;background:var(--amber-glow);border:1px solid rgba(240,165,0,.4);border-radius:7px;display:grid;place-items:center;font-size:.75rem;}
+.topbar-search{flex:1;max-width:360px;display:flex;align-items:center;gap:8px;background:var(--bg3);border:1px solid var(--border);border-radius:7px;padding:0 12px;height:34px;transition:border-color .2s;}
+.topbar-search:focus-within{border-color:var(--amber);}
+.topbar-search input{background:none;border:none;outline:none;color:var(--text);font-family:'Syne',sans-serif;font-size:.8rem;width:100%;}
+.topbar-search input::placeholder{color:var(--text3);}
+.topbar-right{margin-left:auto;display:flex;gap:6px;align-items:center;}
+.tbtn{font-family:'Syne',sans-serif;font-size:.75rem;font-weight:600;padding:5px 11px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;}
+.tbtn:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-dim);}
+.tbtn-primary{background:var(--amber);color:#0d0f14;border-color:var(--amber);font-weight:700;}
+.tbtn-primary:hover{background:var(--amber2);border-color:var(--amber2);color:#0d0f14;}
+.tbtn-danger{background:var(--red-dim);color:var(--red);border-color:rgba(248,113,113,.3);}
+.tbtn-danger:hover{background:var(--red);color:white;}
+
+/* ── LAYOUT ── */
+.layout{display:flex;flex:1;overflow:hidden;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:224px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;transition:width .25s;}
+.sidebar.collapsed{width:0;}
+.sidebar-head{padding:12px 12px 8px;flex-shrink:0;}
+.sidebar-section-label{font-size:.6rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;padding:0 4px;margin-bottom:4px;}
+.nav-list{flex:1;overflow-y:auto;padding:4px 8px 8px;}
+.nav-item{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:7px;cursor:pointer;font-size:.8rem;font-weight:500;color:var(--text2);transition:all .15s;border:1px solid transparent;margin-bottom:2px;position:relative;}
+.nav-item:hover{background:var(--bg3);color:var(--text);}
+.nav-item.active{background:var(--amber-glow);color:var(--amber);border-color:rgba(240,165,0,.2);}
+.nav-item.home-item{color:var(--amber);font-weight:700;}
+.nav-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
+.nav-count{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:.62rem;background:var(--bg4);color:var(--text3);padding:1px 5px;border-radius:8px;}
+.nav-del{display:none;position:absolute;right:6px;color:var(--red);font-size:.8rem;background:var(--red-dim);border:none;border-radius:4px;width:18px;height:18px;cursor:pointer;align-items:center;justify-content:center;}
+.nav-item:hover .nav-del{display:flex;}
+.nav-item:hover .nav-count{display:none;}
+.sidebar-divider{height:1px;background:var(--border);margin:5px 12px;}
+.sidebar-tools{padding:6px 8px;}
+.tool-btn{display:flex;align-items:center;gap:8px;width:100%;padding:7px 9px;border-radius:7px;border:none;background:transparent;color:var(--text2);font-family:'Syne',sans-serif;font-size:.77rem;cursor:pointer;transition:all .15s;text-align:left;font-weight:500;}
+.tool-btn:hover{background:var(--bg3);color:var(--text);}
+.tool-btn.active{background:var(--bg3);color:var(--cyan);}
+.sidebar-bottom{padding:8px;border-top:1px solid var(--border);flex-shrink:0;}
+.sidebar-actions{display:flex;gap:5px;flex-wrap:wrap;}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;padding:20px 24px;scroll-behavior:smooth;}
+.section-block{margin-bottom:36px;}
+.section-header{display:flex;align-items:center;gap:12px;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.section-title{font-size:1.0rem;font-weight:700;color:var(--text);}
+.section-badge{font-family:'JetBrains Mono',monospace;font-size:.62rem;background:var(--amber-dim);color:var(--amber);padding:2px 7px;border-radius:8px;border:1px solid rgba(240,165,0,.2);}
+.section-spacer{flex:1;}
+
+/* PURPOSE BOX */
+.purpose-box{background:var(--bg3);border:1px solid var(--border);border-left:3px solid var(--amber);border-radius:0 8px 8px 0;padding:9px 13px;margin-bottom:12px;display:flex;gap:10px;align-items:flex-start;}
+.purpose-text{font-size:.77rem;color:var(--text2);line-height:1.6;}
+.purpose-title{font-size:.7rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.07em;margin-bottom:2px;}
+
+/* INPUT PANEL */
+.input-panel{background:var(--bg3);border:1px solid var(--border);border-radius:9px;padding:12px 14px;margin-bottom:12px;}
+.input-panel-header{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.input-panel-title{font-size:.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;}
+.inputs-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;}
+.input-item{display:flex;flex-direction:column;gap:3px;}
+.input-label{font-family:'JetBrains Mono',monospace;font-size:.63rem;font-weight:700;color:var(--purple);letter-spacing:.04em;}
+.input-field{background:var(--bg);border:1px solid var(--border2);border-radius:6px;padding:6px 9px;color:var(--text);font-family:'JetBrains Mono',monospace;font-size:.76rem;outline:none;transition:all .2s;width:100%;}
+.input-field:focus{border-color:var(--amber);background:var(--bg2);}
+.input-field.has-value{border-color:rgba(52,211,153,.4);color:var(--green);}
+.input-panel-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;}
+.btn-clear-all{font-size:.68rem;color:var(--red);background:var(--red-dim);border:1px solid rgba(248,113,113,.2);border-radius:5px;padding:3px 9px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:600;transition:all .15s;}
+.btn-clear-all:hover{background:var(--red);color:white;}
+.fill-status{font-size:.68rem;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+.fill-status span{color:var(--green);}
+
+/* QUERY CARDS */
+.query-card{background:var(--bg2);border:1px solid var(--border);border-radius:9px;overflow:hidden;margin-bottom:9px;transition:border-color .2s;}
+.query-card:hover{border-color:var(--border2);}
+.query-card.open{border-color:rgba(240,165,0,.25);}
+.qcard-header{padding:11px 15px;display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none;}
+.qcard-header:hover{background:var(--bg3);}
+.query-card.open .qcard-header{background:var(--bg3);}
+.qcard-chevron{color:var(--text3);font-size:.7rem;transition:transform .2s;flex-shrink:0;}
+.query-card.open .qcard-chevron{transform:rotate(90deg);}
+.qcard-title{font-size:.83rem;font-weight:700;color:var(--text);flex:1;}
+.qcard-tags{display:flex;gap:5px;align-items:center;}
+.qtag{font-family:'JetBrains Mono',monospace;font-size:.58rem;padding:2px 5px;border-radius:4px;font-weight:500;}
+.qtag-select{background:var(--blue-dim);color:var(--blue);border:1px solid rgba(96,165,250,.2);}
+.qtag-update{background:var(--orange-dim);color:var(--orange);border:1px solid rgba(251,146,60,.2);}
+.qtag-delete{background:var(--red-dim);color:var(--red);border:1px solid rgba(248,113,113,.2);}
+.qtag-begin{background:var(--green-dim);color:var(--green);border:1px solid rgba(52,211,153,.2);}
+.qtag-pin{background:var(--amber-dim);color:var(--amber);border:1px solid rgba(240,165,0,.2);}
+.qcard-actions{display:flex;gap:4px;flex-shrink:0;align-items:center;}
+.qbtn{font-family:'Syne',sans-serif;font-size:.68rem;font-weight:600;padding:4px 9px;border-radius:5px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;}
+.qbtn:hover{border-color:var(--amber);color:var(--amber);}
+.qbtn-copy{background:var(--amber-dim);border-color:rgba(240,165,0,.3);color:var(--amber);}
+.qbtn-copy:hover{background:var(--amber);color:#0d0f14;}
+.qbtn-copied{background:var(--green-dim);border-color:rgba(52,211,153,.3);color:var(--green);}
+.qbtn-pin{font-size:.85rem;background:none;border:none;color:var(--text3);cursor:pointer;padding:2px 4px;transition:all .15s;}
+.qbtn-pin:hover,.qbtn-pin.pinned{color:var(--amber);}
+.qbtn-del:hover{background:var(--red-dim);border-color:rgba(248,113,113,.3);color:var(--red);}
+
+.qcard-body{display:none;}
+.query-card.open .qcard-body{display:block;animation:slideIn .18s ease;}
+@keyframes slideIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+
+/* PURPOSE INLINE */
+.qcard-purpose{padding:10px 15px 0;display:flex;gap:8px;align-items:flex-start;}
+.qcard-purpose-text{font-size:.76rem;color:var(--text2);line-height:1.5;background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--cyan);border-radius:0 6px 6px 0;padding:8px 11px;flex:1;}
+.qcard-purpose-label{font-size:.63rem;font-weight:700;color:var(--cyan);display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.07em;}
+
+/* STEPS */
+.qcard-steps{padding:8px 15px 0;}
+.qcard-steps-inner{background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--purple);border-radius:0 6px 6px 0;padding:8px 11px;}
+.qcard-steps-label{font-size:.63rem;font-weight:700;color:var(--purple);margin-bottom:5px;text-transform:uppercase;letter-spacing:.07em;}
+.steps-list{display:flex;flex-direction:column;gap:4px;}
+.step-item{display:flex;gap:8px;align-items:flex-start;}
+.step-num{width:18px;height:18px;border-radius:4px;background:var(--purple-dim);color:var(--purple);font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:700;display:grid;place-items:center;flex-shrink:0;margin-top:1px;}
+.step-text{font-size:.76rem;color:var(--text2);line-height:1.4;}
+
+/* CODE */
+.code-block{position:relative;background:var(--code-bg);border-top:1px solid var(--border);padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:.74rem;line-height:1.75;color:#abb2bf;white-space:pre-wrap;word-break:break-word;overflow-x:auto;}
+.code-copy-bar{display:flex;align-items:center;justify-content:space-between;padding:6px 14px;background:var(--bg3);border-top:1px solid var(--border);}
+.code-copy-label{font-size:.62rem;font-weight:700;color:var(--text3);font-family:'JetBrains Mono',monospace;text-transform:uppercase;letter-spacing:.06em;}
+.btn-copy-code{font-family:'Syne',sans-serif;font-size:.7rem;font-weight:700;padding:4px 12px;border-radius:6px;background:var(--amber-dim);color:var(--amber);border:1px solid rgba(240,165,0,.3);cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:5px;}
+.btn-copy-code:hover{background:var(--amber);color:#0d0f14;}
+.btn-copy-code.copied{background:var(--green-dim);color:var(--green);border-color:rgba(52,211,153,.3);}
+
+/* SYNTAX */
+.kw{color:#569cd6;font-weight:700;}
+.str{color:#ce9178;}
+.cmt{color:#5c7a4a;font-style:italic;}
+.fn{color:#dcdcaa;}
+.var-highlight{color:var(--amber);background:rgba(240,165,0,.12);border-radius:2px;padding:0 2px;}
+.num{color:#b5cea8;}
+
+/* HOME / PINNED */
+.home-hero{background:linear-gradient(135deg,var(--bg2) 0%,var(--bg3) 100%);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:24px;display:flex;align-items:center;gap:16px;}
+.home-hero-icon{font-size:2rem;flex-shrink:0;}
+.home-hero h1{font-size:1.3rem;font-weight:800;color:var(--amber);margin-bottom:4px;}
+.home-hero p{font-size:.82rem;color:var(--text2);line-height:1.5;}
+.home-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:24px;}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:12px 14px;}
+.stat-num{font-family:'JetBrains Mono',monospace;font-size:1.4rem;font-weight:700;color:var(--amber);line-height:1;}
+.stat-label{font-size:.7rem;color:var(--text3);margin-top:3px;}
+.pinned-section-title{font-size:.7rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;display:flex;align-items:center;gap:8px;}
+.pinned-section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+.no-pins{text-align:center;padding:30px;color:var(--text3);font-size:.82rem;}
+.no-pins-icon{font-size:1.8rem;margin-bottom:8px;opacity:.3;}
+
+/* MODULE SELECTOR */
+.module-selector{background:var(--bg2);border-bottom:1px solid var(--border);padding:8px 16px;display:flex;align-items:center;gap:8px;overflow-x:auto;flex-shrink:0;}
+.module-chip{font-size:.72rem;font-weight:600;padding:4px 11px;border-radius:20px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;white-space:nowrap;font-family:'Syne',sans-serif;}
+.module-chip:hover{border-color:var(--amber);color:var(--amber);}
+.module-chip.active{background:var(--amber-dim);border-color:rgba(240,165,0,.4);color:var(--amber);}
+.module-chip-all{background:var(--bg4);}
+
+/* FORMATTER */
+.fmt-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fmt-col label{font-size:.66rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:5px;}
+.fmt-textarea{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:7px;padding:10px;font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--text);resize:vertical;min-height:110px;outline:none;transition:border-color .2s;line-height:1.6;}
+.fmt-textarea:focus{border-color:var(--amber);}
+.fmt-btns{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;}
+.fmt-btn{font-family:'Syne',sans-serif;font-size:.72rem;font-weight:600;padding:5px 11px;border-radius:6px;border:1px solid var(--border2);background:var(--bg3);color:var(--text2);cursor:pointer;transition:all .15s;}
+.fmt-btn:hover{border-color:var(--amber);color:var(--amber);background:var(--amber-dim);}
+
+/* DIFF CHECKER */
+.diff-added{background:rgba(52,211,153,.08);color:var(--green);}
+.diff-removed{background:rgba(248,113,113,.08);color:var(--red);}
+
+/* NOTES */
+.note-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.note-card {
+  background: #fffdf0;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  transition: all 0.25s ease;
+  overflow: hidden;
+  width: 100%;
+  min-height: 60px;
+}
+
+.note-card.collapsed {
+  height: auto !important;
+  min-height: 60px;
+}
+
+.note-card:not(.collapsed) {
+  min-height: unset;
+  height: auto;
+  box-shadow: 0 4px 20px rgba(0,0,0,.2);
+}
+
+.note-head {
+  padding: 10px 14px;
+  background: rgba(254,243,199,.85);
+  border-bottom: 1px solid #fef3c7;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  user-select: none;
+}
+
+.note-title-text {
+  font-weight: 700;
+  font-size: .82rem;
+  color: #451a03;
+}
+
+.note-body {
+  padding: 12px 14px;
+  display: none;
+}
+
+.note-card:not(.collapsed) .note-body {
+  display: block;
+}
+
+.note-content {
+  font-size: .78rem;
+  color: #78350f;
+  white-space: pre-wrap;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1.65;
+  overflow: visible;
+}
+
+.note-date {
+  font-size: .66rem;
+  color: #b45309;
+  opacity: 0.75;
+  margin-top: 10px;
+  border-top: 1px dotted #fcd34d;
+  padding-top: 6px;
+}
+
+/* SCRIPT LIBRARY */
+.lib-table{width:100%;border-collapse:collapse;font-size:.78rem;}
+.lib-table th,.lib-table td{border:1px solid var(--border);padding:9px 11px;text-align:left;}
+.lib-table th{background:var(--bg3);font-weight:700;color:var(--text3);font-size:.68rem;text-transform:uppercase;letter-spacing:.05em;}
+.lib-table tr:hover td{background:var(--bg3);}
+
+/* MODALS */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(6px);z-index:200;align-items:center;justify-content:center;padding:20px;}
+.overlay.open{display:flex;animation:fadeIn .18s ease;}
+@keyframes fadeIn{from{opacity:0;}to{opacity:1;}}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:13px;width:100%;max-width:660px;max-height:90vh;overflow-y:auto;animation:slideUp .22s ease;box-shadow:0 20px 60px rgba(0,0,0,.7);}
+.modal-lg{max-width:820px;}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+.modal-head{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:var(--bg2);z-index:1;}
+.modal-title{font-size:.93rem;font-weight:700;}
+.modal-sub{font-size:.7rem;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace;}
+.modal-x{width:26px;height:26px;border-radius:6px;background:var(--bg3);border:none;color:var(--text2);cursor:pointer;display:grid;place-items:center;font-size:.88rem;transition:all .15s;}
+.modal-x:hover{background:var(--red-dim);color:var(--red);}
+.modal-body{padding:18px;}
+.modal-foot{padding:12px 18px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;position:sticky;bottom:0;background:var(--bg2);}
+
+/* FORM */
+.fg{margin-bottom:13px;}
+.fg-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:13px;}
+.fg label{font-size:.66rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;display:block;margin-bottom:4px;}
+.fg input,.fg select,.fg textarea{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:7px;padding:8px 10px;color:var(--text);font-family:'Syne',sans-serif;font-size:.8rem;outline:none;transition:border-color .2s;}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--amber);}
+.fg textarea{resize:vertical;min-height:85px;font-family:'JetBrains Mono',monospace;font-size:.74rem;color:var(--cyan);line-height:1.7;}
+.fg-hint{font-size:.66rem;color:var(--text3);margin-top:3px;font-family:'JetBrains Mono',monospace;}
+.fg select option{background:var(--bg2);}
+
+/* VERSION */
+.ver-item{border:1px solid var(--border);border-radius:7px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;background:var(--bg3);}
+.ver-date{font-size:.68rem;color:var(--text3);font-family:'JetBrains Mono',monospace;}
+.ver-remark{font-size:.82rem;font-weight:600;margin-top:2px;}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;right:20px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:8px 14px;font-size:.78rem;display:flex;align-items:center;gap:8px;z-index:999;box-shadow:0 8px 24px rgba(0,0,0,.5);transform:translateY(70px);opacity:0;transition:all .3s cubic-bezier(.34,1.56,.64,1);}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast-dot{width:6px;height:6px;border-radius:50%;background:var(--green);}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:2rem;margin-bottom:8px;opacity:.3;}
+.empty-text{font-size:.83rem;color:var(--text2);margin-bottom:3px;}
+
+/* COLORS PICKER */
+.cswatch{transition:transform .1s;cursor:pointer;}
+.cswatch:hover{transform:scale(1.2);}
+
+/* SECTIONS VIEW */
+.sections-wrapper{display:none;}
+.sections-wrapper.visible{display:block;}
+.home-wrapper{display:none;}
+.home-wrapper.visible{display:block;}
+
+.raw-sql{display:none;}
+
+/* Sidebar toggle btn */
+.sidebar-toggle{background:none;border:none;color:var(--text3);cursor:pointer;padding:4px;border-radius:4px;font-size:1rem;transition:color .15s;}
+.sidebar-toggle:hover{color:var(--amber);}
+
+/* Chip groups */
+.chip-group{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px;}
+.chip{font-family:'JetBrains Mono',monospace;font-size:.63rem;padding:2px 8px;border-radius:10px;background:var(--bg4);color:var(--text3);border:1px solid var(--border);}
+
+/* Theme Toggle */
+.theme-toggle{background:var(--bg3);border:1px solid var(--border2);border-radius:20px;padding:3px 5px;cursor:pointer;display:flex;align-items:center;gap:3px;transition:all .2s;}
+.theme-toggle:hover{border-color:var(--amber);}
+.theme-toggle-icon{font-size:.85rem;transition:transform .3s;}
+
+/* Delete confirm modal */
+.del-confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(8px);z-index:500;align-items:center;justify-content:center;}
+.del-confirm-overlay.open{display:flex;}
+.del-confirm-box{background:var(--bg2);border:1px solid var(--border2);border-radius:13px;padding:24px 28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.6);animation:slideUp .2s ease;}
+.del-confirm-icon{font-size:2rem;text-align:center;margin-bottom:10px;}
+.del-confirm-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:5px;text-align:center;}
+.del-confirm-msg{font-size:.8rem;color:var(--text2);text-align:center;margin-bottom:18px;line-height:1.5;}
+.del-confirm-btns{display:flex;gap:8px;justify-content:center;}
+
+/* Save version confirm */
+.save-ver-input{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:7px;padding:8px 12px;color:var(--text);font-family:'Syne',sans-serif;font-size:.82rem;outline:none;margin-bottom:14px;}
+.save-ver-input:focus{border-color:var(--amber);}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
+  <div class="topbar-brand">
+    <div class="topbar-brand-icon">⚡</div>
+    SQL HUB <span style="font-size:.65rem;color:var(--text3);font-weight:400;">V3</span>
+  </div>
+  <div class="topbar-search">
+    <span style="color:var(--text3);font-size:.85rem;">⌕</span>
+    <input type="text" id="global-search" placeholder="Search queries, sections..." oninput="filterContent()">
+  </div>
+  <div class="topbar-right">
+    <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn" title="Toggle Light/Dark">
+      <span class="theme-toggle-icon" id="theme-icon">🌙</span>
+    </button>
+    <button class="tbtn" onclick="goHome()">🏠 Home</button>
+    <button class="tbtn" onclick="openQueryModal()">+ Query</button>
+    <button class="tbtn" onclick="openSectionModal()">+ Section</button>
+    <button class="tbtn" onclick="openGuide()">📖 Guide</button>
+    <button class="tbtn tbtn-primary" onclick="saveToFile()">💾 Save</button>
+  </div>
+</div>
+
+<!-- MODULE SELECTOR -->
+<div class="module-selector" id="module-selector"></div>
+
+<!-- LAYOUT -->
+<div class="layout">
+  <aside class="sidebar" id="main-sidebar">
+    <div class="sidebar-head">
+      <div class="sidebar-section-label">Sections</div>
+    </div>
+    <div class="nav-list" id="sidebar-nav"></div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-tools">
+      <div class="sidebar-section-label" style="padding:0 4px;margin-bottom:4px;">Utilities</div>
+      <button class="tool-btn" id="tool-btn-notes" onclick="scrollToTool('sec-notes')">📝 Notes</button>
+      <button class="tool-btn" id="tool-btn-formatter" onclick="scrollToTool('sec-formatter')">🛠 Data Formatter</button>
+      <button class="tool-btn" id="tool-btn-diff" onclick="scrollToTool('sec-diff')">🔄 SQL Differ</button>
+      <button class="tool-btn" id="tool-btn-library" onclick="scrollToTool('sec-library')">📂 Script Library</button>
+    </div>
+    <div class="sidebar-bottom">
+      <div class="sidebar-actions">
+        <button class="tbtn" style="flex:1" onclick="openVersionModal()">💾 Versions</button>
+        <button class="tbtn tbtn-danger" style="flex:1" onclick="confirmReset()">↺ Reset</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main" id="main-content-area"></main>
+</div>
+
+<!-- ════ ADD QUERY MODAL ════ -->
+<div class="overlay" id="addQueryModal">
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title" id="aqm-title">Add New Query</div>
+        <div class="modal-sub">Use <code style="color:var(--amber)">{{variable}}</code> for dynamic inputs</div>
+      </div>
+      <button class="modal-x" onclick="closeModal('addQueryModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg-row">
+        <div class="fg"><label>Query Title *</label><input id="aq-title" placeholder="e.g. Find Invoice Details"></div>
+        <div class="fg"><label>Section *</label><select id="aq-section"></select></div>
+      </div>
+      <div class="fg">
+        <label>Purpose / Description</label>
+        <input id="aq-purpose" placeholder="What does this query do? When should it be used?">
+        <div class="fg-hint">Shown as a description under the query title.</div>
+      </div>
+      <div class="fg">
+        <label>SQL / Code *</label>
+        <textarea id="aq-sql" rows="10" placeholder="SELECT * FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';"></textarea>
+        <div class="fg-hint">Variables detected: <span id="detected-vars" style="color:var(--purple)">none yet</span></div>
+      </div>
+      <div class="fg">
+        <label>Step-by-step instructions (optional)</label>
+        <textarea id="aq-steps" rows="4" style="color:var(--text2);font-family:'Syne',sans-serif;font-size:.8rem;" placeholder="1. Enter the Invoice Number
+2. Run SELECT to verify
+3. Run UPDATE after confirming"></textarea>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" onclick="closeModal('addQueryModal')">Cancel</button>
+      <button class="tbtn tbtn-primary" onclick="saveQuery()">Save Query</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ ADD SECTION MODAL ════ -->
+<div class="overlay" id="addSectionModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-head">
+      <div class="modal-title">Add New Section</div>
+      <button class="modal-x" onclick="closeModal('addSectionModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="fg"><label>Section Name *</label><input id="sec-name" placeholder="e.g. Loyalty & Rewards"></div>
+      <div class="fg"><label>Description</label><input id="sec-desc" placeholder="What queries does this section contain?"></div>
+      <div class="fg">
+        <label>Colour</label>
+        <div id="sec-color-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;"></div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="tbtn" onclick="closeModal('addSectionModal')">Cancel</button>
+      <button class="tbtn tbtn-primary" onclick="saveSection()">Create Section</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ VERSION MODAL ════ -->
+<div class="overlay" id="versionModal">
+  <div class="modal" style="max-width:560px">
+    <div class="modal-head">
+      <div class="modal-title">💾 Version History</div>
+      <button class="modal-x" onclick="closeModal('versionModal')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:14px;">
+        <div style="font-size:.68rem;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:7px;">Create Snapshot</div>
+        <div style="display:flex;gap:8px;">
+          <span style="flex:1;font-size:.8rem;color:var(--text2);padding:7px 0;">Save a permanent snapshot of your current data.</span>
+          <button class="tbtn tbtn-primary" onclick="openSaveVersionModal()">💾 Save Version</button>
+        </div>
+      </div>
+      <div id="version-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ GUIDE MODAL ════ -->
+<div class="overlay" id="guideModal">
+  <div class="modal modal-lg">
+    <div class="modal-head">
+      <div class="modal-title">📖 How to Use SQL Hub V3</div>
+      <button class="modal-x" onclick="closeModal('guideModal')">✕</button>
+    </div>
+    <div class="modal-body" style="line-height:1.7;font-size:.83rem;color:var(--text2);">
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">🏠 Home Page</div>
+        The home page shows all your <strong style="color:var(--amber)">pinned queries</strong> for quick access, plus stats. Click the 📌 icon on any query to pin it.
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">📂 Module Tabs</div>
+        Use the module tabs at the top to filter sections. Select a module to see only that section's queries + all utilities below.
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">🔑 Dynamic Inputs</div>
+        Type into the input fields above a section. All <code style="color:var(--amber);background:var(--amber-dim);padding:1px 5px;border-radius:3px;">{{variable}}</code> placeholders update live in the code below. Use the Copy button to copy the query with values substituted.
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">📌 Pinning Queries</div>
+        Click the 📌 icon on any query card header to pin it. Pinned queries appear on the Home page for fast access.
+      </div>
+      <div style="margin-bottom:16px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">🛠 Utilities</div>
+        <strong style="color:var(--text)">Data Formatter</strong> — convert lists to SQL IN(...) format, CSV, UPPER/lower. <br>
+        <strong style="color:var(--text)">SQL Differ</strong> — paste two SQL queries to highlight differences. <br>
+        <strong style="color:var(--text)">Script Library</strong> — store server script file paths and remarks. <br>
+        <strong style="color:var(--text)">Notes</strong> — sticky notes with dynamic variable support.
+      </div>
+      <div>
+        <div style="font-size:.72rem;font-weight:700;color:var(--amber);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;">💾 Saving</div>
+        Click <strong style="color:var(--text)">Save</strong> in the top bar to download a portable HTML file with all your data embedded. No server needed.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ CUSTOM CONFIRM MODAL ════ -->
+<div class="del-confirm-overlay" id="confirmModal">
+  <div class="del-confirm-box">
+    <div class="del-confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="del-confirm-title" id="confirm-title">Are you sure?</div>
+    <div class="del-confirm-msg" id="confirm-msg">This action cannot be undone.</div>
+    <div class="del-confirm-btns">
+      <button class="tbtn" onclick="confirmCancel()">Cancel</button>
+      <button class="tbtn tbtn-danger" id="confirm-ok-btn" onclick="confirmOk()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ SAVE VERSION MODAL ════ -->
+<div class="del-confirm-overlay" id="saveVerModal">
+  <div class="del-confirm-box" style="max-width:440px;">
+    <div class="del-confirm-icon">💾</div>
+    <div class="del-confirm-title">Save Version</div>
+    <div class="del-confirm-msg">Give this snapshot a name so you can identify it later.</div>
+    <input class="save-ver-input" id="saveVerRemark" placeholder="e.g. Before client hotfix, Added new queries..." maxlength="80">
+    <div class="del-confirm-btns">
+      <button class="tbtn" onclick="closeSaveVerModal()">Cancel</button>
+      <button class="tbtn tbtn-primary" onclick="confirmSaveVersion()">💾 Save Snapshot</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast">
+  <div class="toast-dot" id="toast-dot" style="background: var(--green);"></div>
+  <span id="toast-msg">File saved ✓</span>
+</div>
+
+<script>
+// === DATA START ===
+const EMBEDDED_DATA = {"sections":[{"id":"sec-partial","name":"Partial Invoice & Enquiries","color":"#f0a500","desc":"Handles partial invoices stuck in the system, and enquiry records that need status updates or rejection.","inputs":["enquiry","job","invoice"]},{"id":"sec-stock","name":"Stock Analysis","color":"#34d399","desc":"Queries to investigate stock discrepancies, check branch stock levels, batch/IMEI availability and GRN details.","inputs":["branch","br_code","item","batch","transfer","grn","to_batch","item2","imei"]},{"id":"sec-sales","name":"Sales & Invoice","color":"#60a5fa","desc":"Fix sales invoice issues — wrong IMEI/batch on a sold item, incorrect item codes, duplicate invoices, and DELETE flows.","inputs":["invoice","item","batch","to_batch","item2","br_code","value","bsd_id","new_qty","bsid_id"]},{"id":"sec-transfer","name":"Stock Transfer","color":"#a78bfa","desc":"Investigate and fix stock transfer issues — stuck transfers, incorrect quantities, IST details, IMEI mismatches during branch-to-branch transfers.","inputs":["transfer","item","batch","br_code","branch"]},{"id":"sec-grn","name":"GRN & Purchase","color":"#fb923c","desc":"Queries to investigate GRN (Goods Receipt Notes) and purchase entries — missing stock after GRN, batch mismatches, cost updates and goods return fixes.","inputs":["grn","item","batch","br_code","to_batch","item2","qty"]},{"id":"sec-job","name":"Job & Service","color":"#22d3ee","desc":"Job card and service-related queries — stuck jobs, item_service records, job status fixes and service charge corrections.","inputs":["job","invoice","enquiry","item","job_transfer","pk_id","br_code","batch","to_batch","imei","item_code"]},{"id":"sec-misc","name":"Misc / Other","color":"#f472b6","desc":"General utility queries — item master lookup, useful for day-to-day database checks that do not fit into a specific module.","inputs":["invoice","item","pk_id"]},{"id":"sec-item-enquiry","name":"Item Enquiry","color":"#f87171","desc":"Queries for item-level investigations — checking IMEI across all stock tables, item rename/swap fixes.","inputs":["item","batch","br_code","to_batch","item2","item_code"]},{"id":"sec-transactions","name":"Transactions","color":"#fbbf24","desc":"Transaction table queries — fixing transaction records, checking document type entries, and journal fixes.","inputs":["invoice","receipt","pk_id"]},{"id":"sec-loyalty","name":"Loyalty","color":"#34d399","desc":"Loyalty program queries — member lookup, point adjustment, redemption issues and loyalty ID fixes.","inputs":["loyalty_id","phone","customer","tocustomer"]},{"id":"sec-accounts","name":"Accounts","color":"#a78bfa","desc":"Account/finance queries — receipt fixes, voucher lookups, account code corrections.","inputs":["receipt","accno","brid","branch","br_code"]},{"id":"sec-server","name":"Server","color":"#94a3b8","desc":"Server administration — deployment steps for new releases, uwsgi config, connection diagnostics, and auto-mailer fixes.","inputs":["invoice","grn","transfer","branch","item","batch","receipt","phone","customer","tocustomer","job_transfer","qty","accno","brid","br_code","item2","to_batch"]},{"id":"sec-1775475515173","name":"non -saleable","color":"#f0a500","desc":"to check the non saleable records","inputs":["imei_or_batch"]},{"id":"sec-1775558024493","name":"ledger mapping","color":"#f0a500","desc":"in mail they provide godown and cash in had ledger to map","inputs":["account_code","account_name","module_name","category","status","type","branch_id"]},{"id":"sec-1776072089602","name":"RECEIPT","color":"#f0a500","desc":"issue with receipts","inputs":["mobile_number","receipt_number","correct_customer_id","wrong_customer_id"]}],"queries":[{"id":"q_pi_1","title":"Reject from POS / Update Active Status","purpose":"Use this to find and deactivate a partial invoice or enquiry stuck as active. Needed when a quote or partial entry cannot be cleared from the POS screen.","steps":"1. Enter the Enquiry # or Job # in the input above\n2. Run the first SELECT to verify the record exists\n3. If confirmed, run the UPDATE to set int_active = -1 (deactivates it)\n4. Verify by running the SELECT again","sql":"SELECT * FROM partial_invoice WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}');\n\nSELECT * FROM partial_invoice WHERE json_data ->> 'vchr_job_num' in ('{{job}}');\n\nUPDATE partial_invoice SET int_active = -1 WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}');\n\nUPDATE partial_invoice SET int_active = -1 WHERE pk_bint_id = (SELECT pk_bint_id FROM partial_invoice WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}'));","sectionId":"sec-partial"},{"id":"q_st_1","sectionId":"sec-stock","title":"General Branch & Item Info","purpose":"Quick lookup of a branch record and item record. First step to get internal pk_bint_id values needed for deeper stock queries.","steps":"1. Enter Branch Name/Code and Item Code\n2. Run to get pk_bint_id for both\n3. Use these IDs in stock detail queries below","sql":"SELECT pk_bint_id, vchr_name, vchr_code FROM branch WHERE vchr_name = '{{branch}}' OR vchr_code = '{{br_code}}';\nSELECT pk_bint_id, vchr_item_code, vchr_item_name FROM item WHERE vchr_item_code = '{{item}}';\n\nSELECT sum(int_received) FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}') \nAND bsd.jsn_batch_no -> 'batch' ? '{{batch}}';\n\nSELECT sum(int_qty) FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}') \nAND bsd.jsn_batch_no::jsonb -> 'batch' ? '{{batch}}';\n\n-- 1. Check by branch and batch\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}' OR vchr_code = '{{br_code}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}';\n\n-- 2. Check by item, branch and batch\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}')\nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}';\n\n-- 3. Check specific IMEI exists\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_imei -> 'imei' ? '{{imei}}';\n\n-- 4. Sum qty/received from imei details by branch + batch\nSELECT \n    sum(bsid.int_qty)      AS total_qty,\n    sum(bsid.int_received) AS total_received\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}';\n\n-- 5. Check reached vs received (reconciliation)\nSELECT \n    bsid.pk_bint_id,\n    bsid.jsn_batch_no,\n    bsid.jsn_imei,\n    bsid.int_qty,\n    bsid.int_received,\n    bsid.jsn_imei_reached,\n    bsid.jsn_batch_reached\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd ON bsd.pk_bint_id = bsid.fk_details_id\nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id\nWHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}')\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND bsid.int_qty != bsid.int_received;  -- mismatch check"},{"id":"q_st_2","title":"Branch Stock Details (by Item + Branch Code)","purpose":"Detailed stock records for a specific item at a specific branch. Shows quantity, IMEI availability and batch info. Essential before making any stock correction.","steps":"1. Enter Item Code and Branch Code (short code like HPF, KGF)\n2. Optionally enter Batch/IMEI to narrow results\n3. Use SELECT to verify stock before running any UPDATE","sql":"SELECT bsd.* FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsd.int_qty > 0\nAND bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}')\nAND bsd.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND jsn_imei_avail -> 'imei_avail' ? '{{batch}}';\n\nSELECT bsd.* FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}')\nAND jsn_imei -> 'imei' ? '{{batch}}';\n\nSELECT gd.pk_bint_id,int_qty,int_avail,vchr_batch_no,fk_branch_id \nFROM grn_details gd JOIN grn_master gm ON gm.pk_bint_id = gd.fk_purchase_id \nWHERE gm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}') \nAND gd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') \nAND vchr_batch_no = '{{batch}}';","sectionId":"sec-stock"},{"id":"q_sal_1","sectionId":"sec-sales","title":"Find and Update Sales Details (IMEI/Batch Fix)","purpose":"When a sale was recorded with the wrong IMEI or batch number, use this query chain to find the exact sales_details row and correct it. Run SELECTs first.","steps":"1. Enter Invoice # and the WRONG Batch/IMEI\n2. Enter Item Code to narrow by item\n3. Run SELECT queries to identify the row\n4. Enter the CORRECT IMEI in the To Batch field\n5. Run the UPDATE query\n6. Verify with a final SELECT","sql":"SELECT * FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}');\nSELECT \n    sm.vchr_invoice_num,\n    b.vchr_code       AS branch_code,\n    b.vchr_name       AS branch_name,\n    i.vchr_item_code  AS item_code,\n    i.vchr_name       AS item_name,\n    sd.json_imei\nFROM sales_master sm\nJOIN branch b \n    ON b.pk_bint_id = sm.fk_branch_id\nJOIN sales_details sd \n    ON sd.fk_master_id = sm.pk_bint_id\nJOIN item i \n    ON i.pk_bint_id = sd.fk_item_id\nWHERE sm.vchr_invoice_num = '{{invoice}}'\nAND sd.json_imei ? '{{batch}}';\n\n\nSELECT sd.pk_bint_id,fk_master_id,fk_item_id,int_qty,json_imei \nFROM sales_details sd \nJOIN sales_master sm ON sd.fk_master_id = sm.pk_bint_id \nWHERE sm.vchr_invoice_num IN ('{{invoice}}') \nAND sd.json_imei ? '{{batch}}' \nAND sd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\nSELECT pk_bint_id,fk_master_id,fk_item_id,int_qty,json_imei \nFROM sales_details \nWHERE fk_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}')) \nAND json_imei ? '{{batch}}';\n\nUPDATE sales_details SET json_imei = '[\"{{to_batch}}\"]' \nWHERE fk_master_id IN (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}')) \nAND json_imei ? '{{batch}}';\n\n-- ============================================\n--  CHECK BRANCH STOCK DETAILS\n-- (BATCH OR IMEI EXISTENCE + QTY)\n-- ============================================\n\nSELECT bsd.pk_bint_id,\n       bsd.int_qty,\n       bsd.jsn_batch_no,\n       bsd.jsn_imei\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm \n    ON bsd.fk_master_id = bsm.pk_bint_id\nJOIN item i \n    ON i.pk_bint_id = bsd.fk_item_id\nJOIN branch b \n    ON b.pk_bint_id = bsm.fk_branch_id\nWHERE b.vchr_code = '{{br_code}}'\nAND i.vchr_item_code = '{{item}}'\nAND (\n    bsd.jsn_batch_no -> 'batch' ? '{{to_batch}}'\n    OR bsd.jsn_imei -> 'imei' ? '{{to_batch}}'\n);\n\n-- BRANCH STOCK IMEI DETAILS\nSELECT bsid.pk_bint_id,\n       bsid.fk_details_id,\n       bsid.int_qty,\n       bsid.jsn_batch_no,\n       bsid.jsn_imei\nFROM branch_stock_imei_details bsid\nWHERE bsid.fk_details_id = {{bsd_id}}\nAND (\n    bsid.jsn_batch_no -> 'batch' ? '{{to_batch}}'\n    OR bsid.jsn_imei -> 'imei' ? '{{to_batch}}'\n);\n--UPDATIONS\n\nBEGIN;\n-- Branch stock details\nUPDATE branch_stock_details\nSET int_qty = {{new_qty}}\nWHERE pk_bint_id = {{bsd_id}};\n\n-- Branch stock IMEI details\nUPDATE branch_stock_imei_details\nSET int_qty = {{new_qty}}\nWHERE pk_bint_id = {{bsid_id}};"},{"id":"q_sal_2","title":"DELETE Duplicate / Full Invoice (Full Flow)","purpose":"When a duplicate sales invoice was created or a full invoice must be deleted. Always run inside BEGIN/ROLLBACK first. Deletes: sales_details, finance_details, payment_details, transaction, sales_master.","steps":"1. Enter the Invoice # of the duplicate/to-delete\n2. Run inside BEGIN to preview all related records\n3. Verify pk_bint_id of the correct record to delete\n4. Run DELETE statements in order\n5. COMMIT only after confirming","sql":"-- =========================\n-- VERIFY FIRST\n-- =========================\nBEGIN;\n\nSELECT pk_bint_id, vchr_invoice_num FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';\n\nSELECT sd.pk_bint_id, fk_master_id, fk_item_id, int_qty, json_imei\nFROM sales_details sd\nJOIN sales_master sm ON sd.fk_master_id = sm.pk_bint_id\nWHERE sm.vchr_invoice_num = '{{invoice}}';\n\nSELECT * FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\nSELECT * FROM finance_details WHERE fk_payment_id IN (SELECT pk_bint_id FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}'));\nSELECT * FROM transaction WHERE int_document_type = 3 AND int_document_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- =========================\n-- DELETE FLOW\n-- =========================\n\n-- 1. Sales Details\nDELETE FROM sales_details WHERE fk_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- 2. Finance Details\nDELETE FROM finance_details WHERE fk_payment_id IN (SELECT pk_bint_id FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}'));\n\n-- 3. Payment Details\nDELETE FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- 4. Transactions\nDELETE FROM transaction WHERE int_document_type = 3 AND int_document_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');\n\n-- 5. Sales Master\nDELETE FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';\n\nROLLBACK; -- Use this if something is wrong\n-- COMMIT;   -- Uncomment after verification","sectionId":"sec-sales"},{"id":"q_tr_1","sectionId":"sec-transfer","title":"Transfer Details & IST","purpose":"View a stock transfer in full — IST details, IMEI layer, branch_stock_details. Use this to diagnose why a transfer is not reflecting correctly at the destination branch.","steps":"1. Enter Transfer # and Batch/IMEI\n2. Run SELECT on ist_details to see line items\n3. Check quantity fields for mismatches\n4. Use UPDATE queries only after confirming","sql":"SELECT array_agg(pk_bint_id) FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}');\n\nSELECT \n    id.*,\n    it.vchr_item_code,\n    st.vchr_stktransfer_num\nFROM ist_details id\nJOIN item it \n    ON it.pk_bint_id = id.fk_item_id\nJOIN stock_transfer st\n    ON st.pk_bint_id = id.fk_transfer_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND id.jsn_batch_no -> 'batch' ? '{{batch}}';\n\nSELECT * FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))\nAND jsn_batch_no -> 'batch' ? '{{batch}}'\nAND fk_item_id IN (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\n\n\n\nSELECT * FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))\nAND jsn_imei -> 'imei' ? '{{batch}}';\n\nSELECT * FROM stock_transfer_imei_details where fk_details_id =(SELECT pk_bint_id FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))\nAND jsn_imei -> 'imei' ? '{{batch}}');\nSELECT *\nFROM stock_transfer_imei_details\nWHERE fk_details_id IN (\n    SELECT pk_bint_id\n    FROM ist_details\n    WHERE fk_transfer_id IN (\n        SELECT pk_bint_id\n        FROM stock_transfer\n        WHERE vchr_stktransfer_num IN ('{{transfer}}')\n    )\n    AND jsn_imei -> 'imei' ? '{{batch}}'\n);\n-- Branch stock master id\nSELECT array_agg(DISTINCT(bsm.pk_bint_id)) AS bsm_id FROM branch_stock_details bsd \nJOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id \nWHERE fk_transfer_details_id IN (SELECT pk_bint_id FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}')));\n\nBEGIN;\n\nUPDATE ist_details id\nSET dbl_supplier_amt = it.dbl_supplier_cost\nFROM item it\nWHERE it.pk_bint_id = id.fk_item_id\n  AND id.fk_transfer_id IN (\n      SELECT pk_bint_id\n      FROM stock_transfer\n      WHERE vchr_stktransfer_num = '{{transfer}}'\n  );\n\nCOMMIT;"},{"id":"q_tr_2","sectionId":"sec-transfer","title":"Branch Stock Using Transfer Num (Full IMEI Layer)","purpose":"Full inspection of IMEI, branch_stock_details, ist_details and stock_transfer_imei_details linked to a transfer number and batch. Use for deep stock mismatch investigation.","steps":"1. Enter Transfer # and Batch/IMEI\n2. Run each SELECT to check each table layer\n3. Use UPDATE comments as a guide for fixes","sql":"-- branch stock imei details\nSELECT bsid.* FROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN branch_stock_imei_details bsid ON bsid.fk_details_id = bsd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND bsid.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND bsid.jsn_imei -> 'imei' ? '{{batch}}';\n\n-- branch stock details\nSELECT bsd.* FROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND bsd.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND bsd.jsn_imei -> 'imei' ? '{{batch}}';\n\n-- ist details\nSELECT isd.* FROM stock_transfer st\nJOIN ist_details isd ON isd.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = isd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND isd.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND isd.jsn_imei -> 'imei' ? '{{batch}}';\n\n-- stock_transfer imei details\nSELECT stid.* FROM stock_transfer st\nJOIN ist_details isd ON isd.fk_transfer_id = st.pk_bint_id\nJOIN stock_transfer_imei_details stid ON stid.fk_details_id = isd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND stid.jsn_batch_no -> 'batch' ? '{{batch}}'\nAND stid.jsn_imei -> 'imei' ? '{{batch}}';\n\nSELECT bsd.*\nFROM branch_stock_details bsd\nWHERE bsd.jsn_imei -> 'imei' ? '{{batch}}'\n   OR bsd.jsn_batch_no -> 'batch' ? '{{batch}}';\n\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nWHERE bsid.jsn_imei -> 'imei' ? '{{batch}}'\n   OR bsid.jsn_batch_no -> 'batch' ? '{{batch}}';"},{"id":"q_tr_3","title":"Fix IST / BSD Qty Mismatch (BEGIN/COMMIT Flow)","purpose":"When int_qty in ist_details does not match int_received in branch_stock_details or branch_stock_imei_details. Detects and fixes mismatches at both BSD and IMEI layers.","steps":"1. Enter Transfer # and Batch/IMEI\n2. Run step 1 (detect) to see mismatches\n3. Run step 2 UPDATE for BSD fix\n4. Run step 3 to verify BSD\n5. Run step 4-5 for IMEI layer\n6. COMMIT or ROLLBACK","sql":"BEGIN;\n\n-- 1. Detect mismatch between IST and Branch Stock Details\nSELECT st.vchr_stktransfer_num, id.pk_bint_id AS ist_details_id,\n    (id.jsn_batch_no -> 'batch' ->> 0) AS batch_no,\n    id.int_qty, bsd.int_received\nFROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsd.int_received;\n\n-- 2. Fix mismatch in Branch Stock Details\nUPDATE branch_stock_details bsd SET int_received = id.int_qty\nFROM stock_transfer st JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nWHERE bsd.fk_transfer_details_id = id.pk_bint_id\nAND st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsd.int_received;\n\n-- 3. Detect IMEI layer mismatch\nSELECT st.vchr_stktransfer_num, id.pk_bint_id AS ist_details_id,\n    bsid.pk_bint_id AS imei_detail_id,\n    (id.jsn_batch_no -> 'batch' ->> 0) AS batch_no, id.int_qty, bsid.int_received\nFROM stock_transfer st\nJOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN branch_stock_imei_details bsid ON bsid.fk_details_id = bsd.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsid.int_received;\n\n-- 4. Fix IMEI mismatch (SAFE ONLY IF 1 IMEI ROW PER DETAIL)\nUPDATE branch_stock_imei_details bsid SET int_received = id.int_qty\nFROM stock_transfer st JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE bsid.fk_details_id = bsd.pk_bint_id\nAND st.vchr_stktransfer_num = '{{transfer}}'\nAND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'\nAND id.int_qty <> bsid.int_received;\n\n-- If everything looks correct: COMMIT;\n-- If anything looks wrong:    ROLLBACK;","sectionId":"sec-transfer"},{"id":"q_grn_1","title":"GRN Updates (Totals, Cost Price, Supplier)","purpose":"Fix GRN issues — update total amount, item cost price, or supplier on a GRN. Also checks for Goods Return issues.","steps":"1. Enter GRN # and Item Code\n2. Run SELECT to verify the GRN exists\n3. Run the specific UPDATE needed\n4. Verify the change","sql":"SELECT * FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}');\nSELECT * FROM grn_details WHERE fk_purchase_id = (SELECT pk_bint_id FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}')) AND fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\n-- Update total\nUPDATE grn_master SET dbl_total = 140934 WHERE vchr_purchase_num IN ('{{grn}}');\n\n-- Update specific item cost in GRN\nUPDATE grn_details SET dbl_costprice = 1219.49, dbl_ppu = 1219.49 \nWHERE fk_purchase_id = (SELECT pk_bint_id FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}')) \nAND fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');\n\n-- Update Supplier\nUPDATE grn_master SET fk_supplier_id = (SELECT pk_bint_id FROM supplier WHERE vchr_code = 'V10951') WHERE vchr_purchase_num IN ('{{grn}}');\n\n-- Goods Return\nSELECT * FROM grnr_master WHERE vchr_purchase_return_num = '{{grn}}';\n\n-- Check GR Return Details\nWITH target AS (\n    SELECT d.pk_bint_id, d.int_qty FROM grnr_details d\n    JOIN grnr_master m ON m.pk_bint_id = d.fk_master_id\n    WHERE m.vchr_purchase_return_num = '{{grn}}'\n      AND d.vchr_batch_no LIKE '%' || '{{batch}}' || '%'\n)\nSELECT * FROM grnr_details WHERE pk_bint_id IN (SELECT pk_bint_id FROM target);","sectionId":"sec-grn"},{"id":"q_grn_2","title":"GRN 500 Error Fix (Infinity/NaN values)","purpose":"When the GRN list throws a 500 server error, this query checks for Infinity, -Infinity, or NaN float values in grn_details which cause the error.","steps":"1. Run the SELECT to find the bad rows\n2. Note the pk_bint_id of affected rows\n3. Update those rows with a correct value","sql":"SELECT * FROM grn_details\nWHERE dbl_dscnt_percent IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)\n   OR dbl_dscnt_perunit IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)\n   OR dbl_discount      IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)\n   OR dbl_costprice     IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float);","sectionId":"sec-grn"},{"id":"q_job_1","sectionId":"sec-job","title":"Job Master & Service Items Lookup","purpose":"Full lookup of a job card — job header, associated service items, and linked enquiry. Use when a job card is stuck or service items are not showing correctly.","steps":"1. Enter Job # \n2. Run SELECT on job_master to check job status\n3. Run SELECT on item_service to see all service items linked\n4. Check status and closed_date fields for anomalies","sql":"SELECT * FROM job_master WHERE vchr_job_num IN ('{{job}}');\n\nSELECT * FROM item_service WHERE fk_job_master_id = (\n  SELECT pk_bint_id FROM job_master WHERE vchr_job_num IN ('{{job}}')\n);\n\nSELECT * FROM enquiry_master WHERE vchr_enquiry_num IN ('{{enquiry}}');\n\nSELECT jm.*, em.vchr_enquiry_num \nFROM job_master jm \nLEFT JOIN enquiry_master em ON jm.fk_enquiry_id = em.pk_bint_id\nWHERE jm.vchr_job_num IN ('{{job}}');\n\n\n--TO REMOVE SPARE \n-- 1. Verify service spare JSON\nSELECT pk_bint_id, jsn_purchase_spare\nFROM item_service\nWHERE fk_job_master_id = (\n    SELECT pk_bint_id\n    FROM job_master\n    WHERE vchr_job_num = '{{job}}'\n);\n\n-- 2. Verify spare detail row\nSELECT *\nFROM job_spare_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM item_service\n    WHERE fk_job_master_id = (\n        SELECT pk_bint_id\n        FROM job_master\n        WHERE vchr_job_num = '{{job}}'\n    )\n)\nAND vchr_imei = '{{imei}}';\n\n-- =================================\n-- UPDATE / DELETE BLOCK\n-- =================================\n\nBEGIN;\n\n-- Remove from JSON spare list\nUPDATE item_service\nSET jsn_purchase_spare = (\n    SELECT jsonb_agg(elem)\n    FROM jsonb_array_elements(jsn_purchase_spare::jsonb) elem\n    WHERE NOT (\n        elem->>'itemCode' = '{{item_code}}'\n        AND elem->'lstAllImei' @> to_jsonb(ARRAY['{{imei}}'])\n    )\n)\nWHERE fk_job_master_id = (\n    SELECT pk_bint_id\n    FROM job_master\n    WHERE vchr_job_num = '{{job}}'\n);\n\n-- Remove from spare details table\nDELETE FROM job_spare_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM item_service\n    WHERE fk_job_master_id = (\n        SELECT pk_bint_id\n        FROM job_master\n        WHERE vchr_job_num = '{{job}}'\n    )\n)\nAND vchr_imei = '{{imei}}';\n\nCOMMIT;\n\n-- 3. Final verification\nSELECT pk_bint_id, jsn_purchase_spare\nFROM item_service\nWHERE fk_job_master_id = (\n    SELECT pk_bint_id\n    FROM job_master\n    WHERE vchr_job_num = '{{job}}'\n);\n\nSELECT *\nFROM job_spare_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM item_service\n    WHERE fk_job_master_id = (\n        SELECT pk_bint_id\n        FROM job_master\n        WHERE vchr_job_num = '{{job}}'\n    )\n);"},{"id":"q_misc_1","title":"Item Master Lookup","purpose":"Find an item record by code. Useful to get the internal pk_bint_id, or to verify item details like name, category and status.","steps":"1. Enter Item Code\n2. Run the SELECT to get item details\n3. Note the pk_bint_id if needed for a manual UPDATE","sql":"SELECT pk_bint_id, vchr_item_code, vchr_item_name, int_active FROM item WHERE vchr_item_code = '{{item}}';\nSELECT * FROM item WHERE vchr_item_code = '{{item}}';","sectionId":"sec-misc"},{"id":"q_srv_1","title":"When New Release — Deployment Steps (POS + BI)","purpose":"Step-by-step shell commands to deploy a new release for POS and BI. Copy files, set permissions, update settings.","steps":"1. SSH into the server\n2. Copy files from the new release folder\n3. Set permissions with chmod\n4. Edit settings.py if needed\n5. Restart uwsgi","sql":"chown -R www-data:www-data /home/Projects/Backend/TBS/ (For Future POS)\n\n# POS - copy files (also give permission chmod 777 -R cd filename)\n# settings.py | webversion.txt | posting_issues.txt | payment_issues.txt | transfer_issue.txt | log\n\ncp ../TBS_16_03_2026/POS/settings.py ./POS/\ncp ../TBS_16_03_2026/POS/dftosql.py ./POS/\ncp ../TBS_16_03_2026/webversion.txt .\ncp ../TBS_16_03_2026/posting_issues.txt .\ncp ../TBS_16_03_2026/payment_issues.txt .\ncp ../TBS_16_03_2026/transfer_issue.txt .\ncp -r ../TBS_16_03_2026/log .\n\nchmod 777 -R ./POS/settings.py webversion.txt posting_issues.txt payment_issues.txt transfer_issue.txt log \nnano ./POS/settings.py\n\nchown www-data:www-data /var/log/uwsgi/tbs.log\nchmod 664 /var/log/uwsgi/tbs.log\n\n# BI\ncp ../bisuite_mob_16_03_2026/CRM/settings.py ./CRM/settings.py \ncp ../bisuite_mob_16_03_2026/mobileappversion.txt ./\ncp -r ../bi_python_16_03_2026/log/ .\nchmod 777 -R ./POS/settings.py webversion.txt log","sectionId":"sec-server"},{"id":"q_srv_2","title":"uwsgi Config File","purpose":"Open and edit the uwsgi config for the POS service.","steps":"1. SSH into server\n2. Run this command to open the config","sql":"nano uwsgi/sites/pos.ini","sectionId":"sec-server"},{"id":"q_srv_3","title":"Auto Mailer Error — Bad IMEI Format in branch_stock_details","purpose":"When auto mailer throws an error related to IMEI format, this checks for double-nested IMEI arrays in branch_stock_details/branch_stock_imei_details.","steps":"1. Run SELECT to find the bad IMEI rows\n2. Note the pk_bint_id\n3. Fix the JSON format in the affected rows","sql":"SELECT * FROM branch_stock_details WHERE jsn_imei_avail->'imei' @> '[[\"2N1-503PAUR135742II\"]]'::jsonb;\n\nSELECT * FROM branch_stock_details WHERE jsn_imei_avail::text LIKE '%[[%';\n\nSELECT * FROM branch_stock_imei_details WHERE jsn_imei::text LIKE '%[[%';","sectionId":"sec-server"},{"id":"q_srv_4","title":"Max Connections (PostgreSQL)","purpose":"Check PostgreSQL max connections, currently used connections, and remaining available connections for normal users.","steps":"1. Run this query on the database\n2. Check res_for_normal — if near 0, connections are maxed out","sql":"SELECT max_conn,used,res_for_super,max_conn-used-res_for_super res_for_normal \nFROM (SELECT count(*) used FROM pg_stat_activity) t1, \n(SELECT setting::int res_for_super FROM pg_settings WHERE name=$superuser_reserved_connections$) t2, \n(SELECT setting::int max_conn FROM pg_settings WHERE name=$max_connections$) t3;","sectionId":"sec-server"},{"id":"q-1775029520771","sectionId":"sec-job","title":"Job Transfer - acknowlege — POS API Failure (Spare Item / IMEI Mismatch)","purpose":"Use when a job transfer acknowledgement fails with \"Something happen with POS\" error. This happens when a spare item in job_spare_details has the wrong item code (fk_item_id) — the IMEI exists in the from-branch POS stock but under a different item code. Fix is to correct the item on the BI spare record and reset the transfer status.","steps":"1. Get the Job Transfer # from the technician (e.g. 25-JT-MCL3-19263) and enter it in the {{job_transfer}} input\n2. Switch to BI DB — Run STEP 1 to get the job transfer record. Note the pk_bint_id, fk_job_master_id, from_branch code, and int_status. If int_status is already 2 and the job is fine, stop here.\n3. Still on BI DB — Enter the fk_job_master_id value from Step 1 result into {{pk_id}} input. Run STEP 2 to get all spare items linked to this job. Note every vchr_imei and vchr_item_code in the result.\n4. Switch to POS DB — Enter the from_branch code (e.g. MCL3) into {{br_code}}. Run STEP 3 first query with all item codes from Step 2 result. Check which IMEI is missing or appearing under a different item code than expected.\n5. Still on POS DB — For any IMEI that did not appear in Step 3 first query, enter that IMEI into {{batch}} and run STEP 3 second query (search by IMEI across all items). This will reveal the actual item code that IMEI is stocked under in POS.\n6. Still on BI DB — Enter the correct item code (found in Step 5) into {{item}} and run STEP 4 to get the correct BI item id. Note the id value returned.\n7. Switch to POS DB — Enter the correct item code into {{item}} and the IMEI into {{batch}} and run STEP 5 to confirm the IMEI exists in from-branch stock under the correct item. Must return exactly 1 row. If 0 rows — stop, do not proceed, escalate for further investigation.\n8. Now identify which case applies:\n   — CASE A (wrong item): IMEI in BI matches POS but item code is different → will fix fk_item_id\n   — CASE B (wrong IMEI): item code matches but IMEI in BI is different from POS → enter correct IMEI into {{to_batch}}, will fix vchr_imei\n9. Switch to BI DB — Enter the job_spare_details pk_bint_id of the wrong spare row into {{pk_id}}. Run STEP 6 BEGIN block. Check the before SELECT result carefully.\n10. Run only the relevant UPDATE — CASE A or CASE B, not both. Check the after SELECT — fk_item_id should now show correct item id (Case A) or vchr_imei should show correct IMEI (Case B).\n11. If both SELECTs look correct — run COMMIT. If anything looks wrong — run ROLLBACK and re-investigate.\n12. Still on BI DB — Run STEP 7 to reset the job transfer int_status back to 1. Verify before and after SELECTs, then COMMIT. This allows the technician to re-acknowledge the transfer from the app.\n13. Inform the technician to retry the acknowledgement from the app. The POS API should now find the correct IMEI under the correct item in from-branch stock and complete successfully.","sql":"-- =============================================\n-- STEP 1 (BI DB): Get job transfer record\n-- Input: {{job_transfer}} e.g. 25-JT-MCL3-19263\n-- Note: pk_bint_id, fk_job_master_id, from_branch, int_status\n-- =============================================\nSELECT jt.pk_bint_id, jt.int_status,\n       jt.fk_job_master_id,\n       fb.vchr_code AS from_branch,\n       tb.vchr_code AS to_branch\nFROM job_transfer jt\nJOIN branch fb ON fb.pk_bint_id = jt.fk_from_id\nJOIN branch tb ON tb.pk_bint_id = jt.fk_to_id\nWHERE jt.vchr_doc_num = '{{job_transfer}}';\n\n-- =============================================\n-- STEP 2 (BI DB): Get all spares for this job\n-- Input: {{pk_id}} = fk_job_master_id from Step 1\n-- Note: pk_bint_id, vchr_imei, vchr_item_code for each spare\n-- =============================================\nSELECT jsd.pk_bint_id, jsd.vchr_imei, jsd.fk_item_id,\n       i.vchr_item_code, i.vchr_item_name,\n       jsd.dbl_amount, jsd.dbl_purchase_price\nFROM job_spare_details jsd\nJOIN items i ON i.id = jsd.fk_item_id\nJOIN item_service isc ON isc.pk_bint_id = jsd.fk_details_id\nWHERE isc.fk_job_master_id = {{pk_id}};\n\n-- =============================================\n-- STEP 3 (POS DB): Check from-branch stock for all spare item codes\n-- Input: {{br_code}} = from_branch from Step 1\n--        {{item}}    = item codes from Step 2 (add all codes in the IN list)\n-- Look for any IMEI that is missing or under a different item code\n-- =============================================\nSELECT bsd.pk_bint_id, bsd.int_qty,\n       bsd.jsn_imei_avail,\n       i.vchr_item_code, b.vchr_code AS branch\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm ON bsm.pk_bint_id = bsd.fk_master_id\nJOIN branch b ON b.pk_bint_id = bsm.fk_branch_id\nJOIN item i ON i.pk_bint_id = bsd.fk_item_id\nWHERE b.vchr_code = '{{br_code}}'\nAND i.vchr_item_code IN ('{{item}}')\nAND bsd.int_qty > 0;\n\n-- If an IMEI is missing from above, search by IMEI across all items in that branch:\n-- Input: {{batch}} = the missing IMEI from Step 2\nSELECT bsd.pk_bint_id, bsd.int_qty, bsd.jsn_imei_avail,\n       i.vchr_item_code, b.vchr_code AS branch\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm ON bsm.pk_bint_id = bsd.fk_master_id\nJOIN branch b ON b.pk_bint_id = bsm.fk_branch_id\nJOIN item i ON i.pk_bint_id = bsd.fk_item_id\nWHERE b.vchr_code = '{{br_code}}'\nAND bsd.jsn_imei_avail -> 'imei' ? '{{batch}}'\nAND bsd.int_qty > 0;\n\n-- =============================================\n-- STEP 4 (BI DB): Get correct BI item id for the right item code\n-- Input: {{item}} = correct item code found in POS Step 3 second query\n-- Note the id — needed for Case A fix in Step 6\n-- =============================================\nSELECT id, vchr_item_code, vchr_item_name\nFROM items\nWHERE vchr_item_code = '{{item}}';\n\n-- =============================================\n-- STEP 5 (POS DB): Verify IMEI exists in from-branch under correct item\n-- Input: {{br_code}} = from_branch\n--        {{item}}    = correct item code from Step 3\n--        {{batch}}   = IMEI in question\n-- MUST return exactly 1 row — if 0 rows stop and escalate\n-- =============================================\nSELECT bsd.pk_bint_id, bsd.int_qty, bsd.jsn_imei_avail,\n       i.vchr_item_code, b.vchr_code AS branch\nFROM branch_stock_details bsd\nJOIN branch_stock_master bsm ON bsm.pk_bint_id = bsd.fk_master_id\nJOIN branch b ON b.pk_bint_id = bsm.fk_branch_id\nJOIN item i ON i.pk_bint_id = bsd.fk_item_id\nWHERE b.vchr_code = '{{br_code}}'\nAND i.vchr_item_code = '{{item}}'\nAND bsd.jsn_imei_avail -> 'imei' ? '{{batch}}'\nAND bsd.int_qty > 0;\n-- Must return exactly 1 row before proceeding to Step 6\n\n-- =============================================\n-- STEP 6 (BI DB): Fix wrong item code OR wrong IMEI on spare record\n-- Input: {{pk_id}}    = job_spare_details pk_bint_id of the wrong spare row\n--        {{item}}     = correct item code (Case A)\n--        {{batch}}    = IMEI on the spare record (Case A safety check)\n--        {{to_batch}} = correct IMEI from POS (Case B)\n-- Run only AFTER Step 5 returns exactly 1 row\n-- Run only ONE case — Case A or Case B, never both\n-- =============================================\nBEGIN;\n\n-- Verify spare record before touching\nSELECT pk_bint_id, vchr_imei, fk_item_id\nFROM job_spare_details\nWHERE pk_bint_id = {{pk_id}};\n\n-- ── CASE A: Wrong item code (IMEI is correct, item code is wrong in BI) ──\n-- Use when IMEI matches POS but fk_item_id points to wrong item\nUPDATE job_spare_details\nSET fk_item_id = (SELECT id FROM items WHERE vchr_item_code = '{{item}}')\nWHERE pk_bint_id = {{pk_id}}\nAND vchr_imei = '{{batch}}';  -- safety: IMEI must match\n\n-- ── CASE B: Wrong IMEI (item code is correct, IMEI was entered wrong in BI) ──\n-- Use when item code matches but IMEI in BI does not match what POS has\n-- Input: {{to_batch}} = correct IMEI from POS Step 5\nUPDATE job_spare_details\nSET vchr_imei = '{{to_batch}}'\nWHERE pk_bint_id = {{pk_id}}\nAND fk_item_id = (SELECT id FROM items WHERE vchr_item_code = '{{item}}');  -- safety: item must match\n\n-- Verify after update\nSELECT pk_bint_id, vchr_imei, fk_item_id\nFROM job_spare_details\nWHERE pk_bint_id = {{pk_id}};\n\n-- ROLLBACK;  -- run if anything looks wrong\n-- COMMIT;    -- run only after both SELECTs look correct\n\n-- =============================================\n-- STEP 7 (BI DB): Reset job transfer status to retry acknowledgement\n-- Input: {{job_transfer}} = job transfer doc number\n-- int_status 1 = pending acknowledgement\n-- int_status 2 = acknowledged (stuck state after POS failure)\n-- Reset to 1 so technician can re-acknowledge from the app\n-- =============================================\nBEGIN;\n\n-- Verify current status\nSELECT pk_bint_id, vchr_doc_num, int_status\nFROM job_transfer\nWHERE vchr_doc_num = '{{job_transfer}}';\n\n-- Reset status\nUPDATE job_transfer\nSET int_status = 1\nWHERE vchr_doc_num = '{{job_transfer}}'\nAND int_status = 2;  -- safety: only reset if currently stuck\n\n-- Verify after reset\nSELECT pk_bint_id, vchr_doc_num, int_status\nFROM job_transfer\nWHERE vchr_doc_num = '{{job_transfer}}';\n\n-- ROLLBACK;  -- if anything looks wrong\n-- COMMIT;    -- only after verifying int_status changed to 1"},{"id":"q-1775040387867","sectionId":"sec-item-enquiry","title":"SOME ERROR IN POS When Batch Button Selected","purpose":"When a batch item is selected in the MyGoal app, the Item Aging  Check API crashes with \"Some error in POS\" error. Root cause  is int_qty saved as NULL in the non_saleable table when a batch item  is marked as non-saleable without a quantity. Fix by setting  int_qty = 1 for all affected records.","steps":"1. Enter the item code reported by the user in {{item_code}}.\n2. Run the SELECT to confirm NULL int_qty records exist for that item.\n3. Run the UPDATE to fix the NULL quantities.\n4. Re-run the SELECT to confirm 0 rows remain.\n5. Ask the user to retry selecting the batch in the MyGoal app.","sql":"SELECT \n    ns.pk_bint_id,\n    ns.jsn_non_saleable,\n    ns.int_qty,\n    ns.int_status,\n    ns.int_batch_or_imei,\n    i.vchr_item_code\nFROM non_saleable ns\nJOIN item i ON i.pk_bint_id = ns.fk_item_id\nWHERE ns.int_status = 0 \n  AND ns.int_batch_or_imei = 1\n  AND ns.int_qty IS NULL\n  AND i.vchr_item_code = '{{item_code}}';\n\n\nUPDATE non_saleable \nSET int_qty = 1 \nWHERE int_status = 0 \n  AND int_batch_or_imei = 1 \n  AND int_qty IS NULL\n  AND fk_item_id = (\n    SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item_code}}'\n  );"},{"id":"q-1775463610918","sectionId":"sec-transfer","title":"delete  Duplicate transfer","purpose":"to deletre duplicate stock transfer","steps":"","sql":"BEGIN;\n\n-- 1. Preview stock_transfer_imei_details\nSELECT stimd.*\nFROM stock_transfer_imei_details stimd\nJOIN ist_details id\n  ON stimd.fk_details_id = id.pk_bint_id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 1. Delete stock_transfer_imei_details\nDELETE FROM stock_transfer_imei_details stimd\nUSING stock_transfer st\nJOIN ist_details id\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE stimd.fk_details_id = id.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 2. Preview branch_stock_imei_details\nSELECT bsid.*\nFROM branch_stock_imei_details bsid\nJOIN branch_stock_details bsd\n  ON bsid.fk_details_id = bsd.pk_bint_id\nJOIN ist_details id\n  ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 2. Delete branch_stock_imei_details\nDELETE FROM branch_stock_imei_details bsid\nUSING stock_transfer st\nJOIN ist_details id\n  ON id.fk_transfer_id = st.pk_bint_id\nJOIN branch_stock_details bsd\n  ON bsd.fk_transfer_details_id = id.pk_bint_id\nWHERE bsid.fk_details_id = bsd.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 3. Preview branch_stock_details\nSELECT bsd.*\nFROM branch_stock_details bsd\nJOIN ist_details id\n  ON bsd.fk_transfer_details_id = id.pk_bint_id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 3. Delete branch_stock_details\nDELETE FROM branch_stock_details bsd\nUSING stock_transfer st\nJOIN ist_details id\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE bsd.fk_transfer_details_id = id.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 4. Preview IST details\nSELECT id.*\nFROM ist_details id\nJOIN stock_transfer st\n  ON id.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 4. Delete IST details\nDELETE FROM ist_details id\nUSING stock_transfer st\nWHERE id.fk_transfer_id = st.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 5. Preview transfer_mode_details\nSELECT tmd.*\nFROM transfer_mode_details tmd\nJOIN stock_transfer st\n  ON tmd.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 5. Delete transfer_mode_details\nDELETE FROM transfer_mode_details tmd\nUSING stock_transfer st\nWHERE tmd.fk_transfer_id = st.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 6. Preview transfer_history\nSELECT th.*\nFROM transfer_history th\nJOIN stock_transfer st\n  ON th.fk_transfer_id = st.pk_bint_id\nWHERE st.vchr_stktransfer_num = '{{transfer}}';\n\n-- 6. Delete transfer_history\nDELETE FROM transfer_history th\nUSING stock_transfer st\nWHERE th.fk_transfer_id = st.pk_bint_id\n  AND st.vchr_stktransfer_num = '{{transfer}}';\n\n\n-- 7. Preview stock_transfer master\nSELECT *\nFROM stock_transfer\nWHERE vchr_stktransfer_num = '{{transfer}}';\n\n-- 7. Delete stock_transfer master\nDELETE FROM stock_transfer\nWHERE vchr_stktransfer_num = '{{transfer}}';\n\nCOMMIT;"},{"id":"q-1775475599476","sectionId":"sec-1775475515173","title":"non saleable records","purpose":"to find out the non saleable records","steps":"","sql":"SELECT * \nFROM non_saleable \nWHERE jsn_non_saleable @> format('[\"%s\"]', '{{imei_or_batch}}')::jsonb\nORDER BY pk_bint_id DESC;\n\n\nUPDATE non_saleable \nSET \n    jsn_status_change = COALESCE(jsn_status_change, '[]'::jsonb) \n                        || format('[\"%s\"]', '{{imei_or_batch}}')::jsonb,\n    int_status = 1,\n    dat_updated = NOW(),\n    vchr_remarks = COALESCE(vchr_remarks, '') \n                   || E'\\nMarked as saleable on ' || TO_CHAR(NOW(), 'YYYY-MM-DD HH24:MI')\nWHERE jsn_non_saleable @> format('[\"%s\"]', '{{imei_or_batch}}')::jsonb\n  AND int_status = 0\n  AND NOT (jsn_status_change @> format('[\"%s\"]', '{{imei_or_batch}}')::jsonb);"},{"id":"q-1775558118821","sectionId":"sec-1775558024493","title":"Add Ledger Mapping Entry","purpose":"This query is used to create a new Chart of Account entry and map it to a module/category for a specific branch. Use this when adding new ledger mappings dynamically.","steps":"","sql":"INSERT INTO chart_of_accounts (vchr_acc_code, vchr_acc_name) \nVALUES ('{{account_code}}', '{{account_name}}');\n\nINSERT INTO accounts_map \n(vchr_module_name, vchr_category, fk_coa_id, int_status, int_type, fk_branch_id) \nVALUES (\n    '{{module_name}}',\n    '{{category}}',\n    (SELECT pk_bint_id FROM chart_of_accounts WHERE vchr_acc_code='{{account_code}}'),\n    {{status}},\n    {{type}},\n    {{branch_id}}\n);"},{"id":"q-1775724771617","sectionId":"sec-grn","title":"GOODS RETURN UPDATE","purpose":"Use when extra goods return happens and GR return quantity needs correction in both detail and IMEI tables.","steps":"Step-by-step instructions\nEnter the GR Return Number\nEnter the Batch Number\nEnter the Correct Quantity\nRun the SELECT queries first for verification\nConfirm the batch + IMEI rows\nRun the UPDATE block\nRe-run SELECT to verify updated qty","sql":"-- 1. Verify GR Return Master\nSELECT *\nFROM grnr_master\nWHERE vchr_purchase_return_num = '{{grn}}';\n\n\n-- 2. Verify GR Return Details\nSELECT *\nFROM grnr_details\nWHERE fk_master_id = (\n    SELECT pk_bint_id\n    FROM grnr_master\n    WHERE vchr_purchase_return_num = '{{grn}}'\n)\nAND vchr_batch_no LIKE '%{{batch}}%';\n\n\n-- 3. Verify IMEI Details\nSELECT *\nFROM grnr_imei_details\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM grnr_details\n    WHERE fk_master_id = (\n        SELECT pk_bint_id\n        FROM grnr_master\n        WHERE vchr_purchase_return_num = '{{grn}}'\n    )\n    AND vchr_batch_no LIKE '%{{batch}}%'\n);\n\n\n-- 4. Update Quantity in Goods Return Detail + IMEI\nBEGIN;\n\nUPDATE grnr_details\nSET int_qty = {{qty}}\nWHERE fk_master_id = (\n    SELECT pk_bint_id\n    FROM grnr_master\n    WHERE vchr_purchase_return_num = '{{grn}}'\n)\nAND vchr_batch_no LIKE '%{{batch}}%';\n\n\nUPDATE grnr_imei_details\nSET int_qty = (\n    SELECT int_qty\n    FROM grnr_details\n    WHERE fk_master_id = (\n        SELECT pk_bint_id\n        FROM grnr_master\n        WHERE vchr_purchase_return_num = '{{grn}}'\n    )\n    AND vchr_batch_no LIKE '%{{batch}}%'\n)\nWHERE fk_details_id = (\n    SELECT pk_bint_id\n    FROM grnr_details\n    WHERE fk_master_id = (\n        SELECT pk_bint_id\n        FROM grnr_master\n        WHERE vchr_purchase_return_num = '{{grn}}'\n    )\n    AND vchr_batch_no LIKE '%{{batch}}%'\n);\n\nCOMMIT;"},{"id":"q-1776072337681","sectionId":"sec-1776072089602","title":"Fix Receipt Linked to Wrong Customer (Duplicate Mobile)","purpose":"When a receipt is billed under a duplicate/wrong customer (same mobile number),  this query reassigns both the receipt and its transaction to the correct customer.","steps":"1. Fill in the first two variables:\n   - mobile_number  → customer mobile (e.g. 9947771188)\n   - receipt_number → the RV number (e.g. 25-RV-PMF-19236)\n\n2. Run Step 1 — lists all customers with that mobile number\n   → CORRECT customer:  usually int_cust_type = 4, full proper name\n   → WRONG customer:    usually int_cust_type = 0, generic/partial name\n   → Note down both pk_bint_id values\n\n3. Run Step 2 — confirms receipt exists and shows current wrong customer\n\n4. Run Step 3 — confirms transaction is also under wrong customer\n\n5. Now fill the remaining two variables:\n   - correct_customer_id → pk_bint_id of intended customer (e.g. 200100)\n   - wrong_customer_id   → pk_bint_id of duplicate customer (e.g. 170477)\n\n6. Run Steps 4 & 5 (BEGIN block) — applies fix to both receipt and transaction\n\n7. Run Step 6 — verify both receipt and transaction now show \n   the correct customer name and ID\n\n8. If Step 6 output looks correct:\n   → Uncomment COMMIT and run\n\n9. If anything looks wrong:\n   → Run ROLLBACK immediately to undo all changes\n\n10. Ask the user to recheck the ledger — the RV should now appear","sql":"-- Step 1: Find all customers with the same mobile number\nSELECT \n    pk_bint_id,\n    vchr_name,\n    int_mobile,\n    int_cust_type,\n    dat_exp\nFROM customer_details \nWHERE int_mobile = {{mobile_number}};\n\n-- Step 2: Find the receipt and its current customer\nSELECT \n    r.pk_bint_id,\n    r.vchr_receipt_num,\n    r.fk_customer_id,\n    cd.vchr_name AS current_customer,\n    cd.int_cust_type,\n    cd.int_mobile\nFROM receipt r\nJOIN customer_details cd ON cd.pk_bint_id = r.fk_customer_id\nWHERE r.vchr_receipt_num = '{{receipt_number}}';\n\n-- Step 3: Check the linked transaction\nSELECT \n    t.pk_bint_id,\n    t.int_accounts_id,\n    cd.vchr_name AS transaction_customer,\n    t.int_account_type,\n    t.dat_created::date,\n    t.fk_branch_id\nFROM transaction t\nJOIN customer_details cd ON cd.pk_bint_id = t.int_accounts_id\nWHERE t.int_document_id = (\n    SELECT pk_bint_id FROM receipt \n    WHERE vchr_receipt_num = '{{receipt_number}}'\n)\nAND t.int_document_type = 1;\n\n-- ⚠️ STOP — Verify Steps 1,2,3 before proceeding\n-- Fill correct_customer_id and wrong_customer_id from above results\n-- Then run the block below\n\nBEGIN;\n\n-- Step 4: Update receipt to correct customer\nUPDATE receipt \nSET fk_customer_id = {{correct_customer_id}}\nWHERE vchr_receipt_num = '{{receipt_number}}'\nAND fk_customer_id = {{wrong_customer_id}};\n\n-- Step 5: Update transaction to correct customer\nUPDATE transaction \nSET int_accounts_id = {{correct_customer_id}}\nWHERE int_document_id = (\n    SELECT pk_bint_id FROM receipt \n    WHERE vchr_receipt_num = '{{receipt_number}}'\n)\nAND int_document_type = 1\nAND int_accounts_id = {{wrong_customer_id}};\n\n-- Step 6: Verify AFTER update (confirm before committing)\nSELECT \n    r.pk_bint_id,\n    r.vchr_receipt_num,\n    r.fk_customer_id,\n    cd.vchr_name AS updated_receipt_customer,\n    cd.int_cust_type,\n    t.pk_bint_id AS transaction_id,\n    t.int_accounts_id AS updated_transaction_customer,\n    t.int_account_type,\n    t.dat_created::date\nFROM receipt r\nJOIN customer_details cd ON cd.pk_bint_id = r.fk_customer_id\nJOIN transaction t ON t.int_document_id = r.pk_bint_id \n    AND t.int_document_type = 1\n    AND t.int_accounts_id = {{correct_customer_id}}\nWHERE r.vchr_receipt_num = '{{receipt_number}}';\n\n-- Step 7: If Step 6 looks correct → COMMIT, else → ROLLBACK\nCOMMIT;\n-- ROLLBACK;"}],"inputs":[{"key":"enquiry","label":"Enquiry #","placeholder":"e.g. 25-ENQ-VMF-30977"},{"key":"job","label":"Job #","placeholder":"e.g. 25-JOB-KPY-0949"},{"key":"invoice","label":"Invoice #","placeholder":"e.g. 25-I-VMF-28819"},{"key":"branch","label":"Branch Name","placeholder":"e.g. HARIPAD FUTURE"},{"key":"br_code","label":"Branch Code","placeholder":"e.g. HPF"},{"key":"item","label":"Item Code","placeholder":"e.g. AC01788"},{"key":"item2","label":"Item Code 2 (To)","placeholder":"TO ITEM"},{"key":"batch","label":"Batch / IMEI","placeholder":"e.g. 26PNG0189710990"},{"key":"to_batch","label":"To Batch/IMEI","placeholder":"Replacement IMEI"},{"key":"transfer","label":"Transfer #","placeholder":"e.g. 25-T-POLE-6276"},{"key":"grn","label":"GRN #","placeholder":"e.g. 25-GRN-NKF-2384"},{"key":"purchase","label":"Purchase #","placeholder":"e.g. 25-GRN-NKF-2384"},{"key":"receipt","label":"Receipt #","placeholder":"e.g. 25-RV-TDF-17055"},{"key":"job_transfer","label":"Job Transfer #","placeholder":"e.g. 25-JT-MCL3-18473"},{"key":"loyalty_id","label":"Loyalty ID","placeholder":"Member card/ID"},{"key":"pk_id","label":"PK / Row ID","placeholder":"Primary key value"},{"key":"acc_code","label":"Account Code","placeholder":"e.g. ACC-001"},{"key":"accno","label":"Account Number","placeholder":"e.g. 101010201199"},{"key":"brid","label":"Branch ID","placeholder":"e.g. 265"},{"key":"phone","label":"Phone","placeholder":"e.g. 9876543210"},{"key":"customer","label":"Customer ID","placeholder":"e.g. 3799234"},{"key":"tocustomer","label":"To Customer ID","placeholder":"e.g. 3799234"},{"key":"qty","label":"Quantity","placeholder":"e.g. 10"},{"key":"item_code","label":"item_code","placeholder":"item_code"},{"key":"imei_or_batch","label":"imei_or_batch","placeholder":"imei_or_batch"},{"key":"value","label":"value","placeholder":"value"},{"key":"bsd_id","label":"bsd_id","placeholder":"bsd_id"},{"key":"new_qty","label":"new_qty","placeholder":"new_qty"},{"key":"bsid_id","label":"bsid_id","placeholder":"bsid_id"},{"key":"account_code","label":"account_code","placeholder":"account_code"},{"key":"account_name","label":"account_name","placeholder":"account_name"},{"key":"module_name","label":"module_name","placeholder":"module_name"},{"key":"category","label":"category","placeholder":"category"},{"key":"status","label":"status","placeholder":"status"},{"key":"type","label":"type","placeholder":"type"},{"key":"branch_id","label":"branch_id","placeholder":"branch_id"},{"key":"imei","label":"imei","placeholder":"imei"},{"key":"mobile_number","label":"mobile_number","placeholder":"mobile_number"},{"key":"receipt_number","label":"receipt_number","placeholder":"receipt_number"},{"key":"correct_customer_id","label":"correct_customer_id","placeholder":"correct_customer_id"},{"key":"wrong_customer_id","label":"wrong_customer_id","placeholder":"wrong_customer_id"}],"configs":{},"inputHistory":{"sec-stock:branch":["TEST"],"sec-stock:br_code":["VMF","RIG02119","NBF","TEST"],"sec-stock:item":["RIG02119","ABGN04694","TEST"],"sec-job:job_transfer":["25-JT-MCL3-19263"],"sec-job:pk_id":["1121660"],"sec-job:br_code":["MCL3"],"sec-job:item":["DSP01353","DSP22886', 'DSP00867', 'DSP16286', 'DSP22108', 'DSP58793', 'DSP22886","'DSP22886', 'DSP00867', 'DSP16286', 'DSP22108', 'DSP58793', 'DSP22886'"],"sec-partial:enquiry":["25-ENQ-EDY-56133","25-ENQ-EDY-","25-ENQ-","25-ENQ-CMD-24771"],"sec-partial:job":["25-JOB-TDF-2688"," 25-JOB-TDF-2689","25-GDOT-TPTM-0036"],"sec-sales:invoice":["25-I-3GH-1848","25-SR-3GH-0153","25-I-TDP-1253","24-S-MCL3-5988","25-I-EDY-66372","25-I-EDY-66405","25-I-EPF-19536","25-I-KGF-49530","25-I-POT-96393","25-I-TPF-45459","25-I-TDF-64190","25-I-KGF-52670","25-I-KYF-36830","25-I-KYF-","25-I-NBF-32342"],"sec-sales:item":["AC01363","AC01362","RIG02119","CRC01206","ABGN07001","STB00027","ABGN04694"],"sec-sales:batch":["3712758004889J","37105380074151","3712758004892D","37105380068356","KSTM11-62F9770","KSTM11-58A24234/1","KSTM11-58A5934/1","26CRC0120610074","26ABGN0700110093","26STB0002710039","26PRC0038211503","26ABGN0469410367"],"sec-sales:to_batch":["37127580008200","3710538004307+","37105380040390","37127580008288","KSTM11-62F11209","KSTM11-58A5934/1","KSTM11-58A24234/1","26CRC0120610141","26ABGN0700110099","26STB0002700069","26PRC0038211511","26ABGN0469410411"],"sec-stock:batch":["KSTM11-62F7648","NQ4-512PAAJ085464II","26ABGN0469410411"],"sec-transfer:transfer":["26-CS-MCL3-0001","25-BS-WHO3-0058","26-T-HPFG-0269","25-BS-VDF-0015","25-BS-WHO3-0058','25-BS-MCH-0008","25-T-WHO1-157860","25-T-WHO1-116543","25-T-OLG-16891","25-T-BLF-4466","26-T-TMF-0030"],"sec-transfer:batch":["26PNG0314610357","26PRC0038211511","NQ4-512PAAJ085464II","26ABGN0611910099","26ABGN0611910094"],"sec-grn:grn":["25-GR-WHO1-1040"," 25-GR-WHO1-1197","25-GRN-NKF-2384"],"sec-grn:item":["AC01788"],"sec-1775475515173:imei_or_batch":["0322712601270101M7"],"sec-sales:br_code":["EDY","EPF","KGF","POT","TPF","TDF"],"sec-sales:value":["26STB0002700069"],"sec-sales:bsd_id":["8083754","7913647","8065833"],"sec-sales:new_qty":["69","5"],"sec-sales:bsid_id":["8034508","8188035"],"sec-1775558024493:account_code":["102020101267"],"sec-1775558024493:account_name":["Stock-in-hand - INFRA SUPPORT WAREHOUSE"],"sec-1775558024493:module_name":["PAYMENT"],"sec-1775558024493:category":["Stock-in-hand - INFRA SUPPORT WAREHOUSE"],"sec-1775558024493:status":["0"],"sec-1775558024493:type":["1"],"sec-1775558024493:branch_id":["267"],"sec-grn:batch":["25PNG0286510359","25PERF0001210044"],"sec-grn:qty":["4"],"sec-job:job":[" 26-JOB-PUT-0012","26-JOB-PUT-0012"],"sec-job:imei":["DSPPUT-1256"],"sec-job:item_code":["DSP59240"],"sec-transfer:item":["PNG03146"]},"versions":[],"notes":[{"id":"n1778309523269","title":"MYG SCREENS","content":"===========================================================================PostgreSQL====================================================================================================================\n/etc/init.d/postgresql restart\n\n================================================================================EQT======================================================================================================================\n\ncd /home/BI/EQT/bisuite_mob\nsource /home/BI/env/bin/activate\n\nuwsgi --socket /tmp/mobile_bi_python.sock --chdir /home/BI/EQT/bisuite_mob/ --wsgi-file /home/BI/EQT/bisuite_mob/CRM/wsgi.py --chmod-socket=777 --virtualenv /home/BI/env/ --master --processes 80 --threads 12\n\n\n=================================================================================BI======================================================================================================================\ncd /home/BI/BiSuite/bi_python\nsource /home/BI/env/bin/activate\n\nuwsgi --socket /tmp/bi_python.sock --chdir /home/BI/BiSuite/bi_python/ --wsgi-file /home/BI/BiSuite/bi_python/CRM/wsgi.py --chmod-socket=777 --virtualenv /home/BI/env/ --master --processes 92 --threads 12\n\n\n=================================================================================CELERY - BI===========================================================================================================\ncd /home/BI/BiSuite/bi_python\nsource /home/BI/env/bin/activate\n\ncelery -A CRM.celery worker -l DEBUG -E\n\n\n=====================================================================================POS=================================================================================================================\nsystemctl stop pos.service\ncd /home/POS/Backend/TBS\nchmod 777 -R log\nsystemctl start pos.service\n\n===================================================================================CELERY -POS=========================================================================================================\ncd /home/POS/Backend/TBS\nsource /home/POS/env/bin/activate\ncelery -A POS.celery worker -l INFO -E --concurrency=30\n\n\ncelery -A POS.celery worker -l DEBUG -E\n\n====================================================================================TBS -4444==========================================================================================================\ncd /home/POS/Backend/POS_TEST_ARUN/TBS\nsource /home/POS/env/bin/activate\npython manage.py runserver 0.0.0.0:5555\n\n======================================================================================SERVE==============================================================================================================\ncd /home/POS/Data\nsource /home/POS/env/bin/activate\npython3 -m http.server\n\n=====================================================================================INTEGRATION==========================================================================================================\n\ncd /home/POS/Backend/sap_api_integration/MYG_INDIA/BACKDATE_INTEGRTION\nsource /home/POS/env/bin/activate\npython mygoal_integration_clearing.py\n\n=====================================================================================REDIS -POS AND BI=================================================================================================\nsystemctl status redis.service\nsystemctl start redis.service\n\n======================================================================================CHAT - BI========================================================================================================\nsystemctl status chat.service\nsystemctl start chat.service\n\n==================================================================================================================================================================================================\n\n\n\n\n\n\n\n\n\n\n\n======================================================================================wsgi pos ===========================\nnano /etc/uwsgi/sites/pos.ini\n\n[uwsgi]\nproject = TBS\nbase = /home/POS/Backend\n\nchdir = %(base)/%(project)\n# module = %(project).wsgi:application 56\nmaster = true\nprocesses = 100\nthreads = 12\nsocket = /tmp/myg_pos.sock\nchmod-socket = 666\nuid = www-data\ngid = www-data\nvacuum = true\n\nwsgi-file = /home/POS/Backend/TBS/POS/wsgi.py\n\nmodule = POS.wsgi:application\nvirtualenv = /home/POS/env/\n\n\n----------\nchanged to processes = 88\n\n\n----------------------\n\nchanged to processes =2\nthreads = 4","created":1778309523269}],"scripts":[{"id":"s1775457195678","name":"vigil_grpo_push.py","path":"/home/Project/POS/SCRIPTS/V_SCRIPTS","remark":"to repush grns","purpose":"clinet provides some grn doc numbers to repush","steps":"provide the grn doc nums as csv format into the list and push"},{"id":"s1775552948653","name":"vigil_expenseToSap.py","path":"/home/Project/POS/SCRIPTS/V_SCRIPTS","remark":"to push payment","purpose":"","steps":""},{"id":"s1775562473150","name":"new_mahe_karnataka_stock_transfer_with_bill_api.py  , new_mahe_karnataka_stock_transfer_apinvoice_api.py","path":"/home/Project/POS/SCRIPTS/SAP_INTEGRATION/BACKDATE_INTEGRTION_MANUAL","remark":"to push karnataka stock transfer ( Ap invoice & Bill )","purpose":"","steps":"in bills take stock transfer pkbintid\n\nin api invoice branch stock master id"},{"id":"s1776334924553","name":"receipt_repush.py","path":"/home/Project/POS/SCRIPTS/V_SCRIPTS/receipt_repush.py","remark":"to re push receipts","purpose":"cient will provide recipt doc numbers to respush","steps":""}],"pins":[],"activeModule":"sec-partial"};
+// === DATA END ===
+
+const FACTORY_DATA = {
+  inputs:[
+    {key:'enquiry',label:'Enquiry #',placeholder:'e.g. 25-ENQ-VMF-30977'},
+    {key:'job',label:'Job #',placeholder:'e.g. 25-JOB-KPY-0949'},
+    {key:'invoice',label:'Invoice #',placeholder:'e.g. 25-I-VMF-28819'},
+    {key:'branch',label:'Branch Name',placeholder:'e.g. HARIPAD FUTURE'},
+    {key:'br_code',label:'Branch Code',placeholder:'e.g. HPF'},
+    {key:'item',label:'Item Code',placeholder:'e.g. AC01788'},
+    {key:'item2',label:'Item Code 2 (To)',placeholder:'TO ITEM'},
+    {key:'batch',label:'Batch / IMEI',placeholder:'e.g. 26PNG0189710990'},
+    {key:'to_batch',label:'To Batch/IMEI',placeholder:'Replacement IMEI'},
+    {key:'transfer',label:'Transfer #',placeholder:'e.g. 25-T-POLE-6276'},
+    {key:'grn',label:'GRN #',placeholder:'e.g. 25-GRN-NKF-2384'},
+    {key:'purchase',label:'Purchase #',placeholder:'e.g. 25-GRN-NKF-2384'},
+    {key:'receipt',label:'Receipt #',placeholder:'e.g. 25-RV-TDF-17055'},
+    {key:'job_transfer',label:'Job Transfer #',placeholder:'e.g. 25-JT-MCL3-18473'},
+    {key:'loyalty_id',label:'Loyalty ID',placeholder:'Member card/ID'},
+    {key:'pk_id',label:'PK / Row ID',placeholder:'Primary key value'},
+    {key:'acc_code',label:'Account Code',placeholder:'e.g. ACC-001'},
+    {key:'accno',label:'Account Number',placeholder:'e.g. 101010201199'},
+    {key:'brid',label:'Branch ID',placeholder:'e.g. 265'},
+    {key:'phone',label:'Phone',placeholder:'e.g. 9876543210'},
+    {key:'customer',label:'Customer ID',placeholder:'e.g. 3799234'},
+    {key:'tocustomer',label:'To Customer ID',placeholder:'e.g. 3799234'},
+    {key:'qty',label:'Quantity',placeholder:'e.g. 10'},
+  ],
+  sections:[
+    {
+      id:'sec-partial', name:'Partial Invoice & Enquiries', color:'#f0a500',
+      desc:'Handles partial invoices stuck in the system, and enquiry records that need status updates or rejection.',
+      inputs:['enquiry','job','invoice'],
+      queries:[{
+        id:'q_pi_1',
+        title:'Reject from POS / Update Active Status',
+        purpose:'Use this to find and deactivate a partial invoice or enquiry stuck as active. Needed when a quote or partial entry cannot be cleared from the POS screen.',
+        steps:'1. Enter the Enquiry # or Job # in the input above\n2. Run the first SELECT to verify the record exists\n3. If confirmed, run the UPDATE to set int_active = -1 (deactivates it)\n4. Verify by running the SELECT again',
+        sql:`SELECT * FROM partial_invoice WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}');
+
+SELECT * FROM partial_invoice WHERE json_data ->> 'vchr_job_num' in ('{{job}}');
+
+UPDATE partial_invoice SET int_active = -1 WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}');
+
+UPDATE partial_invoice SET int_active = -1 WHERE pk_bint_id = (SELECT pk_bint_id FROM partial_invoice WHERE json_data ->> 'vchr_enquiry_num' IN ('{{enquiry}}'));`
+      }]
+    },
+    {
+      id:'sec-stock', name:'Stock Analysis', color:'#34d399',
+      desc:'Queries to investigate stock discrepancies, check branch stock levels, batch/IMEI availability and GRN details.',
+      inputs:['branch','br_code','item','batch','transfer','grn','to_batch','item2'],
+      queries:[{
+        id:'q_st_1',
+        title:'General Branch & Item Info',
+        purpose:'Quick lookup of a branch record and item record. First step to get internal pk_bint_id values needed for deeper stock queries.',
+        steps:'1. Enter Branch Name/Code and Item Code\n2. Run to get pk_bint_id for both\n3. Use these IDs in stock detail queries below',
+        sql:`SELECT pk_bint_id, vchr_name, vchr_code FROM branch WHERE vchr_name = '{{branch}}' OR vchr_code = '{{br_code}}';
+SELECT pk_bint_id, vchr_item_code, vchr_item_name FROM item WHERE vchr_item_code = '{{item}}';
+
+SELECT sum(int_received) FROM branch_stock_details bsd 
+JOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id 
+WHERE bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}') 
+AND bsd.jsn_batch_no -> 'batch' ? '{{batch}}';
+
+SELECT sum(int_qty) FROM branch_stock_details bsd 
+JOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id 
+WHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') 
+AND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_name = '{{branch}}') 
+AND bsd.jsn_batch_no::jsonb -> 'batch' ? '{{batch}}';`
+      },{
+        id:'q_st_2',
+        title:'Branch Stock Details (by Item + Branch Code)',
+        purpose:'Detailed stock records for a specific item at a specific branch. Shows quantity, IMEI availability and batch info. Essential before making any stock correction.',
+        steps:'1. Enter Item Code and Branch Code (short code like HPF, KGF)\n2. Optionally enter Batch/IMEI to narrow results\n3. Use SELECT to verify stock before running any UPDATE',
+        sql:`SELECT bsd.* FROM branch_stock_details bsd 
+JOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id 
+WHERE bsd.int_qty > 0
+AND bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') 
+AND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}')
+AND bsd.jsn_batch_no -> 'batch' ? '{{batch}}'
+AND jsn_imei_avail -> 'imei_avail' ? '{{batch}}';
+
+SELECT bsd.* FROM branch_stock_details bsd 
+JOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id 
+WHERE bsd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') 
+AND bsm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}')
+AND jsn_imei -> 'imei' ? '{{batch}}';
+
+SELECT gd.pk_bint_id,int_qty,int_avail,vchr_batch_no,fk_branch_id 
+FROM grn_details gd JOIN grn_master gm ON gm.pk_bint_id = gd.fk_purchase_id 
+WHERE gm.fk_branch_id = (SELECT pk_bint_id FROM branch WHERE vchr_code = '{{br_code}}') 
+AND gd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}') 
+AND vchr_batch_no = '{{batch}}';`
+      }]
+    },
+    {
+      id:'sec-sales', name:'Sales & Invoice', color:'#60a5fa',
+      desc:'Fix sales invoice issues — wrong IMEI/batch on a sold item, incorrect item codes, duplicate invoices, and DELETE flows.',
+      inputs:['invoice','item','batch','to_batch','item2'],
+      queries:[{
+        id:'q_sal_1',
+        title:'Find and Update Sales Details (IMEI/Batch Fix)',
+        purpose:'When a sale was recorded with the wrong IMEI or batch number, use this query chain to find the exact sales_details row and correct it. Run SELECTs first.',
+        steps:'1. Enter Invoice # and the WRONG Batch/IMEI\n2. Enter Item Code to narrow by item\n3. Run SELECT queries to identify the row\n4. Enter the CORRECT IMEI in the To Batch field\n5. Run the UPDATE query\n6. Verify with a final SELECT',
+        sql:`SELECT * FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}');
+
+SELECT sd.pk_bint_id,fk_master_id,fk_item_id,int_qty,json_imei 
+FROM sales_details sd 
+JOIN sales_master sm ON sd.fk_master_id = sm.pk_bint_id 
+WHERE sm.vchr_invoice_num IN ('{{invoice}}') 
+AND sd.json_imei ? '{{batch}}' 
+AND sd.fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');
+
+SELECT pk_bint_id,fk_master_id,fk_item_id,int_qty,json_imei 
+FROM sales_details 
+WHERE fk_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}')) 
+AND json_imei ? '{{batch}}';
+
+UPDATE sales_details SET json_imei = '["{{to_batch}}"]' 
+WHERE fk_master_id IN (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num IN ('{{invoice}}')) 
+AND json_imei ? '{{batch}}';`
+      },{
+        id:'q_sal_2',
+        title:'DELETE Duplicate / Full Invoice (Full Flow)',
+        purpose:'When a duplicate sales invoice was created or a full invoice must be deleted. Always run inside BEGIN/ROLLBACK first. Deletes: sales_details, finance_details, payment_details, transaction, sales_master.',
+        steps:'1. Enter the Invoice # of the duplicate/to-delete\n2. Run inside BEGIN to preview all related records\n3. Verify pk_bint_id of the correct record to delete\n4. Run DELETE statements in order\n5. COMMIT only after confirming',
+        sql:`-- =========================
+-- VERIFY FIRST
+-- =========================
+BEGIN;
+
+SELECT pk_bint_id, vchr_invoice_num FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';
+
+SELECT sd.pk_bint_id, fk_master_id, fk_item_id, int_qty, json_imei
+FROM sales_details sd
+JOIN sales_master sm ON sd.fk_master_id = sm.pk_bint_id
+WHERE sm.vchr_invoice_num = '{{invoice}}';
+
+SELECT * FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');
+SELECT * FROM finance_details WHERE fk_payment_id IN (SELECT pk_bint_id FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}'));
+SELECT * FROM transaction WHERE int_document_type = 3 AND int_document_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');
+
+-- =========================
+-- DELETE FLOW
+-- =========================
+
+-- 1. Sales Details
+DELETE FROM sales_details WHERE fk_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');
+
+-- 2. Finance Details
+DELETE FROM finance_details WHERE fk_payment_id IN (SELECT pk_bint_id FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}'));
+
+-- 3. Payment Details
+DELETE FROM payment_details WHERE fk_sales_master_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');
+
+-- 4. Transactions
+DELETE FROM transaction WHERE int_document_type = 3 AND int_document_id = (SELECT pk_bint_id FROM sales_master WHERE vchr_invoice_num = '{{invoice}}');
+
+-- 5. Sales Master
+DELETE FROM sales_master WHERE vchr_invoice_num = '{{invoice}}';
+
+ROLLBACK; -- Use this if something is wrong
+-- COMMIT;   -- Uncomment after verification`
+      }]
+    },
+    {
+      id:'sec-transfer', name:'Stock Transfer', color:'#a78bfa',
+      desc:'Investigate and fix stock transfer issues — stuck transfers, incorrect quantities, IST details, IMEI mismatches during branch-to-branch transfers.',
+      inputs:['transfer','item','batch','br_code','branch'],
+      queries:[{
+        id:'q_tr_1',
+        title:'Transfer Details & IST',
+        purpose:'View a stock transfer in full — IST details, IMEI layer, branch_stock_details. Use this to diagnose why a transfer is not reflecting correctly at the destination branch.',
+        steps:'1. Enter Transfer # and Batch/IMEI\n2. Run SELECT on ist_details to see line items\n3. Check quantity fields for mismatches\n4. Use UPDATE queries only after confirming',
+        sql:`SELECT array_agg(pk_bint_id) FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}');
+
+SELECT * FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))
+AND jsn_batch_no -> 'batch' ? '{{batch}}'
+AND fk_item_id IN (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');
+
+SELECT * FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}'))
+AND jsn_imei -> 'imei' ? '{{batch}}';
+
+-- Branch stock master id
+SELECT array_agg(DISTINCT(bsm.pk_bint_id)) AS bsm_id FROM branch_stock_details bsd 
+JOIN branch_stock_master bsm ON bsd.fk_master_id = bsm.pk_bint_id 
+WHERE fk_transfer_details_id IN (SELECT pk_bint_id FROM ist_details WHERE fk_transfer_id IN (SELECT pk_bint_id FROM stock_transfer WHERE vchr_stktransfer_num IN ('{{transfer}}')));`
+      },{
+        id:'q_tr_2',
+        title:'Branch Stock Using Transfer Num (Full IMEI Layer)',
+        purpose:'Full inspection of IMEI, branch_stock_details, ist_details and stock_transfer_imei_details linked to a transfer number and batch. Use for deep stock mismatch investigation.',
+        steps:'1. Enter Transfer # and Batch/IMEI\n2. Run each SELECT to check each table layer\n3. Use UPDATE comments as a guide for fixes',
+        sql:`-- branch stock imei details
+SELECT bsid.* FROM stock_transfer st
+JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id
+JOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id
+JOIN branch_stock_imei_details bsid ON bsid.fk_details_id = bsd.pk_bint_id
+WHERE st.vchr_stktransfer_num = '{{transfer}}'
+AND bsid.jsn_batch_no -> 'batch' ? '{{batch}}'
+AND bsid.jsn_imei -> 'imei' ? '{{batch}}';
+
+-- branch stock details
+SELECT bsd.* FROM stock_transfer st
+JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id
+JOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id
+WHERE st.vchr_stktransfer_num = '{{transfer}}'
+AND bsd.jsn_batch_no -> 'batch' ? '{{batch}}'
+AND bsd.jsn_imei -> 'imei' ? '{{batch}}';
+
+-- ist details
+SELECT isd.* FROM stock_transfer st
+JOIN ist_details isd ON isd.fk_transfer_id = st.pk_bint_id
+JOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = isd.pk_bint_id
+WHERE st.vchr_stktransfer_num = '{{transfer}}'
+AND isd.jsn_batch_no -> 'batch' ? '{{batch}}'
+AND isd.jsn_imei -> 'imei' ? '{{batch}}';
+
+-- stock_transfer imei details
+SELECT stid.* FROM stock_transfer st
+JOIN ist_details isd ON isd.fk_transfer_id = st.pk_bint_id
+JOIN stock_transfer_imei_details stid ON stid.fk_details_id = isd.pk_bint_id
+WHERE st.vchr_stktransfer_num = '{{transfer}}'
+AND stid.jsn_batch_no -> 'batch' ? '{{batch}}'
+AND stid.jsn_imei -> 'imei' ? '{{batch}}';`
+      },{
+        id:'q_tr_3',
+        title:'Fix IST / BSD Qty Mismatch (BEGIN/COMMIT Flow)',
+        purpose:'When int_qty in ist_details does not match int_received in branch_stock_details or branch_stock_imei_details. Detects and fixes mismatches at both BSD and IMEI layers.',
+        steps:'1. Enter Transfer # and Batch/IMEI\n2. Run step 1 (detect) to see mismatches\n3. Run step 2 UPDATE for BSD fix\n4. Run step 3 to verify BSD\n5. Run step 4-5 for IMEI layer\n6. COMMIT or ROLLBACK',
+        sql:`BEGIN;
+
+-- 1. Detect mismatch between IST and Branch Stock Details
+SELECT st.vchr_stktransfer_num, id.pk_bint_id AS ist_details_id,
+    (id.jsn_batch_no -> 'batch' ->> 0) AS batch_no,
+    id.int_qty, bsd.int_received
+FROM stock_transfer st
+JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id
+JOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id
+WHERE st.vchr_stktransfer_num = '{{transfer}}'
+AND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'
+AND id.int_qty <> bsd.int_received;
+
+-- 2. Fix mismatch in Branch Stock Details
+UPDATE branch_stock_details bsd SET int_received = id.int_qty
+FROM stock_transfer st JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id
+WHERE bsd.fk_transfer_details_id = id.pk_bint_id
+AND st.vchr_stktransfer_num = '{{transfer}}'
+AND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'
+AND id.int_qty <> bsd.int_received;
+
+-- 3. Detect IMEI layer mismatch
+SELECT st.vchr_stktransfer_num, id.pk_bint_id AS ist_details_id,
+    bsid.pk_bint_id AS imei_detail_id,
+    (id.jsn_batch_no -> 'batch' ->> 0) AS batch_no, id.int_qty, bsid.int_received
+FROM stock_transfer st
+JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id
+JOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id
+JOIN branch_stock_imei_details bsid ON bsid.fk_details_id = bsd.pk_bint_id
+WHERE st.vchr_stktransfer_num = '{{transfer}}'
+AND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'
+AND id.int_qty <> bsid.int_received;
+
+-- 4. Fix IMEI mismatch (SAFE ONLY IF 1 IMEI ROW PER DETAIL)
+UPDATE branch_stock_imei_details bsid SET int_received = id.int_qty
+FROM stock_transfer st JOIN ist_details id ON id.fk_transfer_id = st.pk_bint_id
+JOIN branch_stock_details bsd ON bsd.fk_transfer_details_id = id.pk_bint_id
+WHERE bsid.fk_details_id = bsd.pk_bint_id
+AND st.vchr_stktransfer_num = '{{transfer}}'
+AND (id.jsn_batch_no -> 'batch' ->> 0) = '{{batch}}'
+AND id.int_qty <> bsid.int_received;
+
+-- If everything looks correct: COMMIT;
+-- If anything looks wrong:    ROLLBACK;`
+      }]
+    },
+    {
+      id:'sec-grn', name:'GRN & Purchase', color:'#fb923c',
+      desc:'Queries to investigate GRN (Goods Receipt Notes) and purchase entries — missing stock after GRN, batch mismatches, cost updates and goods return fixes.',
+      inputs:['grn','item','batch','br_code','to_batch','item2','qty'],
+      queries:[{
+        id:'q_grn_1',
+        title:'GRN Updates (Totals, Cost Price, Supplier)',
+        purpose:'Fix GRN issues — update total amount, item cost price, or supplier on a GRN. Also checks for Goods Return issues.',
+        steps:'1. Enter GRN # and Item Code\n2. Run SELECT to verify the GRN exists\n3. Run the specific UPDATE needed\n4. Verify the change',
+        sql:`SELECT * FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}');
+SELECT * FROM grn_details WHERE fk_purchase_id = (SELECT pk_bint_id FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}')) AND fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');
+
+-- Update total
+UPDATE grn_master SET dbl_total = 140934 WHERE vchr_purchase_num IN ('{{grn}}');
+
+-- Update specific item cost in GRN
+UPDATE grn_details SET dbl_costprice = 1219.49, dbl_ppu = 1219.49 
+WHERE fk_purchase_id = (SELECT pk_bint_id FROM grn_master WHERE vchr_purchase_num IN ('{{grn}}')) 
+AND fk_item_id = (SELECT pk_bint_id FROM item WHERE vchr_item_code = '{{item}}');
+
+-- Update Supplier
+UPDATE grn_master SET fk_supplier_id = (SELECT pk_bint_id FROM supplier WHERE vchr_code = 'V10951') WHERE vchr_purchase_num IN ('{{grn}}');
+
+-- Goods Return
+SELECT * FROM grnr_master WHERE vchr_purchase_return_num = '{{grn}}';
+
+-- Check GR Return Details
+WITH target AS (
+    SELECT d.pk_bint_id, d.int_qty FROM grnr_details d
+    JOIN grnr_master m ON m.pk_bint_id = d.fk_master_id
+    WHERE m.vchr_purchase_return_num = '{{grn}}'
+      AND d.vchr_batch_no LIKE '%' || '{{batch}}' || '%'
+)
+SELECT * FROM grnr_details WHERE pk_bint_id IN (SELECT pk_bint_id FROM target);`
+      },{
+        id:'q_grn_2',
+        title:'GRN 500 Error Fix (Infinity/NaN values)',
+        purpose:'When the GRN list throws a 500 server error, this query checks for Infinity, -Infinity, or NaN float values in grn_details which cause the error.',
+        steps:'1. Run the SELECT to find the bad rows\n2. Note the pk_bint_id of affected rows\n3. Update those rows with a correct value',
+        sql:`SELECT * FROM grn_details
+WHERE dbl_dscnt_percent IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)
+   OR dbl_dscnt_perunit IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)
+   OR dbl_discount      IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float)
+   OR dbl_costprice     IN ('Infinity'::float, '-Infinity'::float, 'NaN'::float);`
+      }]
+    },
+    {
+      id:'sec-job', name:'Job & Service', color:'#22d3ee',
+      desc:'Job card and service-related queries — stuck jobs, item_service records, job status fixes and service charge corrections.',
+      inputs:['job','invoice','enquiry','item'],
+      queries:[{
+        id:'q_job_1',
+        title:'Job Master & Service Items Lookup',
+        purpose:'Full lookup of a job card — job header, associated service items, and linked enquiry. Use when a job card is stuck or service items are not showing correctly.',
+        steps:'1. Enter Job # \n2. Run SELECT on job_master to check job status\n3. Run SELECT on item_service to see all service items linked\n4. Check status and closed_date fields for anomalies',
+        sql:`SELECT * FROM job_master WHERE vchr_job_num IN ('{{job}}');
+
+SELECT * FROM item_service WHERE fk_job_master_id = (
+  SELECT pk_bint_id FROM job_master WHERE vchr_job_num IN ('{{job}}')
+);
+
+SELECT * FROM enquiry_master WHERE vchr_enquiry_num IN ('{{enquiry}}');
+
+SELECT jm.*, em.vchr_enquiry_num 
+FROM job_master jm 
+LEFT JOIN enquiry_master em ON jm.fk_enquiry_id = em.pk_bint_id
+WHERE jm.vchr_job_num IN ('{{job}}');`
+      }]
+    },
+    {
+      id:'sec-misc', name:'Misc / Other', color:'#f472b6',
+      desc:'General utility queries — item master lookup, useful for day-to-day database checks that do not fit into a specific module.',
+      inputs:['invoice','item','pk_id'],
+      queries:[{
+        id:'q_misc_1',
+        title:'Item Master Lookup',
+        purpose:'Find an item record by code. Useful to get the internal pk_bint_id, or to verify item details like name, category and status.',
+        steps:'1. Enter Item Code\n2. Run the SELECT to get item details\n3. Note the pk_bint_id if needed for a manual UPDATE',
+        sql:`SELECT pk_bint_id, vchr_item_code, vchr_item_name, int_active FROM item WHERE vchr_item_code = '{{item}}';
+SELECT * FROM item WHERE vchr_item_code = '{{item}}';`
+      }]
+    },
+    {
+      id:'sec-item-enquiry', name:'Item Enquiry', color:'#f87171',
+      desc:'Queries for item-level investigations — checking IMEI across all stock tables, item rename/swap fixes.',
+      inputs:['item','batch','br_code','to_batch','item2'],
+      queries:[]
+    },
+    {
+      id:'sec-transactions', name:'Transactions', color:'#fbbf24',
+      desc:'Transaction table queries — fixing transaction records, checking document type entries, and journal fixes.',
+      inputs:['invoice','receipt','pk_id'],
+      queries:[]
+    },
+    {
+      id:'sec-loyalty', name:'Loyalty', color:'#34d399',
+      desc:'Loyalty program queries — member lookup, point adjustment, redemption issues and loyalty ID fixes.',
+      inputs:['loyalty_id','phone','customer','tocustomer'],
+      queries:[]
+    },
+    {
+      id:'sec-accounts', name:'Accounts', color:'#a78bfa',
+      desc:'Account/finance queries — receipt fixes, voucher lookups, account code corrections.',
+      inputs:['receipt','accno','brid','branch','br_code'],
+      queries:[]
+    },
+    {
+      id:'sec-server', name:'Server', color:'#94a3b8',
+      desc:'Server administration — deployment steps for new releases, uwsgi config, connection diagnostics, and auto-mailer fixes.',
+      inputs:['invoice','grn','transfer','branch','item','batch','receipt','phone','customer','tocustomer','job_transfer','qty','accno','brid','br_code','item2','to_batch'],
+      queries:[{
+        id:'q_srv_1',
+        title:'When New Release — Deployment Steps (POS + BI)',
+        purpose:'Step-by-step shell commands to deploy a new release for POS and BI. Copy files, set permissions, update settings.',
+        steps:'1. SSH into the server\n2. Copy files from the new release folder\n3. Set permissions with chmod\n4. Edit settings.py if needed\n5. Restart uwsgi',
+        sql:`chown -R www-data:www-data /home/Projects/Backend/TBS/ (For Future POS)
+
+# POS - copy files (also give permission chmod 777 -R cd filename)
+# settings.py | webversion.txt | posting_issues.txt | payment_issues.txt | transfer_issue.txt | log
+
+cp ../TBS_16_03_2026/POS/settings.py ./POS/
+cp ../TBS_16_03_2026/POS/dftosql.py ./POS/
+cp ../TBS_16_03_2026/webversion.txt .
+cp ../TBS_16_03_2026/posting_issues.txt .
+cp ../TBS_16_03_2026/payment_issues.txt .
+cp ../TBS_16_03_2026/transfer_issue.txt .
+cp -r ../TBS_16_03_2026/log .
+
+chmod 777 -R ./POS/settings.py webversion.txt posting_issues.txt payment_issues.txt transfer_issue.txt log 
+nano ./POS/settings.py
+
+chown www-data:www-data /var/log/uwsgi/tbs.log
+chmod 664 /var/log/uwsgi/tbs.log
+
+# BI
+cp ../bisuite_mob_16_03_2026/CRM/settings.py ./CRM/settings.py 
+cp ../bisuite_mob_16_03_2026/mobileappversion.txt ./
+cp -r ../bi_python_16_03_2026/log/ .
+chmod 777 -R ./POS/settings.py webversion.txt log`
+      },{
+        id:'q_srv_2',
+        title:'uwsgi Config File',
+        purpose:'Open and edit the uwsgi config for the POS service.',
+        steps:'1. SSH into server\n2. Run this command to open the config',
+        sql:`nano uwsgi/sites/pos.ini`
+      },{
+        id:'q_srv_3',
+        title:'Auto Mailer Error — Bad IMEI Format in branch_stock_details',
+        purpose:'When auto mailer throws an error related to IMEI format, this checks for double-nested IMEI arrays in branch_stock_details/branch_stock_imei_details.',
+        steps:'1. Run SELECT to find the bad IMEI rows\n2. Note the pk_bint_id\n3. Fix the JSON format in the affected rows',
+        sql:`SELECT * FROM branch_stock_details WHERE jsn_imei_avail->'imei' @> '[["2N1-503PAUR135742II"]]'::jsonb;
+
+SELECT * FROM branch_stock_details WHERE jsn_imei_avail::text LIKE '%[[%';
+
+SELECT * FROM branch_stock_imei_details WHERE jsn_imei::text LIKE '%[[%';`
+      },{
+        id:'q_srv_4',
+        title:'Max Connections (PostgreSQL)',
+        purpose:'Check PostgreSQL max connections, currently used connections, and remaining available connections for normal users.',
+        steps:'1. Run this query on the database\n2. Check res_for_normal — if near 0, connections are maxed out',
+        sql:`SELECT max_conn,used,res_for_super,max_conn-used-res_for_super res_for_normal 
+FROM (SELECT count(*) used FROM pg_stat_activity) t1, 
+(SELECT setting::int res_for_super FROM pg_settings WHERE name=$$superuser_reserved_connections$$) t2, 
+(SELECT setting::int max_conn FROM pg_settings WHERE name=$$max_connections$$) t3;`
+      }]
+    }
+  ]
+};
+
+const SEC_COLORS = ['#f0a500','#34d399','#60a5fa','#a78bfa','#fb923c','#22d3ee','#f472b6','#f87171','#fbbf24','#94a3b8'];
+
+// ════════════════════════════════════
+// STATE
+// ════════════════════════════════════
+let STATE = {
+  sections:[], queries:[], inputs:[], configs:{},
+  inputHistory:{}, versions:[], notes:[], scripts:[],
+  pins:[], activeModule:'home', lastModified: 0, saveCount: 1
+};
+
+let editQueryId = null;
+let selectedSecColor = SEC_COLORS[0];
+let sidebarOpen = true;
+
+// ════════════════════════════════════
+// INIT
+// ════════════════════════════════════
+function initApp() {
+  let localState = null;
+  try {
+    const savedStr = localStorage.getItem('sqlhub_v3');
+    if (savedStr) localState = JSON.parse(savedStr);
+  } catch(e) { console.error("Error parsing localstorage", e); }
+
+  // Logic to determine which state is newest
+  if (EMBEDDED_DATA && localState) {
+      if ((localState.lastModified || 0) > (EMBEDDED_DATA.lastModified || 0)) {
+          STATE = localState;
+      } else {
+          STATE = EMBEDDED_DATA;
+      }
+  } else if (EMBEDDED_DATA) {
+      STATE = EMBEDDED_DATA;
+  } else if (localState) {
+      STATE = localState;
+  } else {
+      STATE.sections = FACTORY_DATA.sections.map(s => ({id:s.id,name:s.name,color:s.color,desc:s.desc,inputs:[...s.inputs]}));
+      STATE.inputs = [...FACTORY_DATA.inputs];
+      FACTORY_DATA.sections.forEach(s => s.queries.forEach(q => STATE.queries.push({...q, sectionId:s.id})));
+  }
+
+  // Fallback defaults for missing arrays
+  if (!STATE.pins) STATE.pins=[];
+  if (!STATE.notes) STATE.notes=[];
+  if (!STATE.scripts) STATE.scripts=[];
+  if (!STATE.activeModule) STATE.activeModule='home';
+  if (!STATE.saveCount) STATE.saveCount = 1;
+  
+  // Make sure we have latest inputs from factory if new ones were added in code
+  FACTORY_DATA.inputs.forEach(fi => {
+      if (!STATE.inputs.find(i => i.key === fi.key)) STATE.inputs.push(fi);
+  });
+
+  renderAll();
+}
+
+function saveData() { 
+  STATE.lastModified = Date.now();
+  localStorage.setItem('sqlhub_v3', JSON.stringify(STATE)); 
+}
+
+function renderAll() {
+  renderSidebar();
+  renderModuleChips();
+  renderMain();
+}
+
+// ════════════════════════════════════
+// SIDEBAR
+// ════════════════════════════════════
+function renderSidebar() {
+  const nav = document.getElementById('sidebar-nav');
+  nav.innerHTML = '';
+  // Home
+  const home = document.createElement('div');
+  home.className = 'nav-item home-item' + (STATE.activeModule==='home'?' active':'');
+  home.innerHTML = `<span style="font-size:.9rem">🏠</span><span>Home</span><span class="nav-count">${STATE.pins.length}📌</span>`;
+  home.onclick = () => goHome();
+  nav.appendChild(home);
+
+  STATE.sections.forEach(s => {
+    const qCount = STATE.queries.filter(q => q.sectionId === s.id).length;
+    const div = document.createElement('div');
+    div.className = 'nav-item' + (STATE.activeModule===s.id?' active':'');
+    div.innerHTML = `
+      <div class="nav-dot" style="background:${s.color}"></div>
+      <span>${s.name}</span>
+      <span class="nav-count">${qCount}</span>
+      <button class="nav-del" onclick="deleteSectionConfirm('${s.id}',event)" title="Delete section">×</button>
+    `;
+    div.onclick = (e) => { if(e.target.classList.contains('nav-del')) return; switchModule(s.id); };
+    nav.appendChild(div);
+  });
+}
+
+function renderModuleChips() {
+  const sel = document.getElementById('module-selector');
+  sel.innerHTML = `<span style="font-size:.65rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.08em;white-space:nowrap;flex-shrink:0;">View:</span>`;
+  
+  const all = document.createElement('div');
+  all.className = 'module-chip module-chip-all' + (STATE.activeModule==='home'?' active':'');
+  all.textContent = '🏠 Home';
+  all.onclick = () => goHome();
+  sel.appendChild(all);
+
+  const allSec = document.createElement('div');
+  allSec.className = 'module-chip' + (STATE.activeModule==='all'?' active':'');
+  allSec.textContent = '📋 All Sections';
+  allSec.onclick = () => switchModule('all');
+  sel.appendChild(allSec);
+
+  STATE.sections.forEach(s => {
+    const chip = document.createElement('div');
+    chip.className = 'module-chip' + (STATE.activeModule===s.id?' active':'');
+    chip.style.borderColor = STATE.activeModule===s.id ? s.color : '';
+    chip.style.color = STATE.activeModule===s.id ? s.color : '';
+    chip.style.background = STATE.activeModule===s.id ? `${s.color}15` : '';
+    chip.innerHTML = `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${s.color};margin-right:5px;"></span>${s.name}`;
+    chip.onclick = () => switchModule(s.id);
+    sel.appendChild(chip);
+  });
+}
+
+function goHome() {
+  STATE.activeModule = 'home';
+  saveData();
+  renderAll();
+  document.getElementById('main-content-area').scrollTop = 0;
+}
+
+function switchModule(id) {
+  STATE.activeModule = id;
+  saveData();
+  renderAll();
+  document.getElementById('main-content-area').scrollTop = 0;
+}
+
+// ════════════════════════════════════
+// MAIN RENDER
+// ════════════════════════════════════
+function renderMain() {
+  const area = document.getElementById('main-content-area');
+  area.innerHTML = '';
+
+  if (STATE.activeModule === 'home') {
+    renderHomePage(area);
+    renderToolSections(area);
+  } else if (STATE.activeModule === 'all') {
+    STATE.sections.forEach(s => renderSection(s, area));
+    renderToolSections(area);
+  } else {
+    const sec = STATE.sections.find(s => s.id === STATE.activeModule);
+    if (sec) renderSection(sec, area);
+    renderToolSections(area);
+  }
+}
+
+// HOME PAGE
+function renderHomePage(area) {
+  const pinned = STATE.pins.map(pid => STATE.queries.find(q => q.id === pid)).filter(Boolean);
+
+  const wrap = document.createElement('div');
+  wrap.innerHTML = `
+    <div class="home-hero">
+      <div class="home-hero-icon">⚡</div>
+      <div>
+        <h1>SQL Hub V3</h1>
+        <p>Your portable POS query toolkit. Pin frequent queries for quick access. Use module tabs to focus on a section.</p>
+      </div>
+    </div>
+    <div class="home-stats">
+      <div class="stat-card"><div class="stat-num">${STATE.sections.length}</div><div class="stat-label">Sections</div></div>
+      <div class="stat-card"><div class="stat-num">${STATE.queries.length}</div><div class="stat-label">Queries</div></div>
+      <div class="stat-card"><div class="stat-num">${STATE.pins.length}</div><div class="stat-label">Pinned</div></div>
+      <div class="stat-card"><div class="stat-num">${STATE.notes.length}</div><div class="stat-label">Notes</div></div>
+    </div>
+    <div class="pinned-section-title">📌 Pinned Queries</div>
+  `;
+  area.appendChild(wrap);
+
+  if (pinned.length === 0) {
+    const empty = document.createElement('div');
+    empty.className = 'empty';
+    empty.innerHTML = `<div class="empty-icon">📌</div><div class="empty-text">No pinned queries yet</div><div style="font-size:.76rem;color:var(--text3)">Click the 📌 icon on any query to pin it here for quick access</div>`;
+    area.appendChild(empty);
+  } else {
+    pinned.forEach(q => {
+      const sec = STATE.sections.find(s => s.id === q.sectionId);
+      renderQueryCard(q, area, sec);
+    });
+  }
+}
+
+// SECTION RENDER
+function renderSection(s, area) {
+  const qList = STATE.queries.filter(q => q.sectionId === s.id);
+  const sec = document.createElement('section');
+  sec.id = s.id;
+  sec.className = 'section-block';
+
+  sec.innerHTML = `
+    <div class="section-header">
+      <div style="width:10px;height:10px;border-radius:50%;background:${s.color};flex-shrink:0"></div>
+      <div class="section-title">${s.name}</div>
+      <span class="section-badge">${qList.length} quer${qList.length===1?'y':'ies'}</span>
+      <div class="section-spacer"></div>
+      <button class="tbtn" onclick="openQueryModal('${s.id}')">+ Query</button>
+    </div>
+    ${s.desc ? `<div class="purpose-box"><div class="purpose-text"><div class="purpose-title">📂 About this section</div>${s.desc}</div></div>` : ''}
+    <div id="queries-${s.id}"></div>
+  `;
+  area.appendChild(sec);
+
+  const qContainer = sec.querySelector(`#queries-${s.id}`);
+  if (qList.length === 0) {
+    qContainer.innerHTML = `<div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No queries yet</div><div style="font-size:.76rem;color:var(--text3)">Click + Query above to add one</div></div>`;
+  } else {
+    qList.forEach(q => renderQueryCard(q, qContainer, s));
+  }
+}
+
+// BUILD CARD INPUT PANEL — only shows vars used in this query's SQL
+function buildCardInputPanel(q) {
+  const sql = q.sql || '';
+  const usedKeys = [...new Set([...sql.matchAll(/\{\{([^}]+)\}\}/g)].map(m => m[1]))];
+  if (!usedKeys.length) return '';
+  const inputs = usedKeys.map(k => STATE.inputs.find(i => i.key === k) || {key:k, label:k, placeholder:k});
+  const filledCount = inputs.filter(inp => {
+    const el = document.getElementById(`cinp-${q.id}-${inp.key}`);
+    return el && el.value.trim();
+  }).length;
+  return `
+    <div class="input-panel" style="margin:10px 15px 0;border-radius:7px;">
+      <div class="input-panel-header">
+        <div class="input-panel-title">🔑 Input Values</div>
+      </div>
+      <div class="inputs-grid">
+        ${inputs.map(inp => `
+          <div class="input-item">
+            <label class="input-label">{{${inp.key}}}</label>
+            <input class="input-field" id="cinp-${q.id}-${inp.key}" placeholder="${inp.placeholder||inp.label}"
+              oninput="handleCardInput(this,'${q.id}','${q.sectionId}','${inp.key}')"
+              onchange="saveHistory('${inp.key}',this.value,'${q.sectionId}')"
+              list="chist-${q.id}-${inp.key}">
+            <datalist id="chist-${q.id}-${inp.key}">
+              ${(STATE.inputHistory[`${q.sectionId}:${inp.key}`]||[]).map(v=>`<option value="${escHtml(v)}">`).join('')}
+            </datalist>
+          </div>
+        `).join('')}
+      </div>
+      <div class="input-panel-footer">
+        <button class="btn-clear-all" onclick="clearCardInputs('${q.id}','${q.sectionId}')">✕ Clear All</button>
+        <div class="fill-status" id="cfill-${q.id}"><span>${filledCount}</span>/${inputs.length} filled</div>
+      </div>
+    </div>`;
+}
+
+// QUERY CARD
+function renderQueryCard(q, container, sec) {
+  if (!sec) sec = STATE.sections.find(s=>s.id===q.sectionId);
+  const card = document.createElement('div');
+  card.className = 'query-card';
+  card.id = 'card-'+q.id;
+  const isPinned = STATE.pins.includes(q.id);
+  const isFactory = FACTORY_DATA.sections.some(s=>s.queries&&s.queries.find(fq=>fq.id===q.id));
+  const tags = detectTags(q.sql||'');
+  const stepLines = (q.steps||'').split('\n').filter(Boolean);
+
+  card.innerHTML = `
+    <div class="qcard-header" onclick="toggleCard(this)">
+      <span class="qcard-chevron">▶</span>
+      <div class="qcard-title">${q.title}</div>
+      <div class="qcard-tags">
+        ${tags.map(t=>`<span class="qtag qtag-${t.toLowerCase()}">${t}</span>`).join('')}
+        ${isPinned?'<span class="qtag qtag-pin">📌</span>':''}
+        ${sec?`<span class="qtag" style="background:${sec.color}20;color:${sec.color};border:1px solid ${sec.color}30;font-size:.55rem;">${sec.name}</span>`:''}
+      </div>
+      <div class="qcard-actions" onclick="event.stopPropagation()">
+        <button class="qbtn-pin${isPinned?' pinned':''}" title="${isPinned?'Unpin':'Pin to Home'}" onclick="togglePin('${q.id}')">${isPinned?'📌':'📌'}</button>
+        <button class="qbtn qbtn-copy" id="copybtn-${q.id}" onclick="copyQuery('${q.id}','${q.sectionId}')">⎘ Copy</button>
+        <button class="qbtn" onclick="editQuery('${q.id}')">✎ Edit</button>
+        <button class="qbtn qbtn-del" onclick="deleteQueryConfirm('${q.id}')">× Del</button>
+      </div>
+    </div>
+    <div class="qcard-body">
+      ${q.purpose?`<div class="qcard-purpose"><div class="qcard-purpose-text"><span class="qcard-purpose-label">Purpose</span>${escHtml(q.purpose)}</div></div>`:''}
+      ${stepLines.length?`<div class="qcard-steps"><div class="qcard-steps-inner"><div class="qcard-steps-label">Steps</div><div class="steps-list">${stepLines.map((l,i)=>`<div class="step-item"><div class="step-num">${i+1}</div><div class="step-text">${escHtml(l.replace(/^\d+\.\s*/,''))}</div></div>`).join('')}</div></div></div>`:''}
+      ${buildCardInputPanel(q)}
+      <div class="code-block" id="code-${q.id}">${renderCardSQL(q.sql||'', q.id)}</div>
+      <div class="code-copy-bar">
+        <span class="code-copy-label">SQL / Code</span>
+        <button class="btn-copy-code" id="copybtn2-${q.id}" onclick="copyQuery('${q.id}','${q.sectionId}')">⎘ Copy Query</button>
+      </div>
+      <div class="raw-sql">${escHtml(q.sql||'')}</div>
+    </div>
+  `;
+  container.appendChild(card);
+}
+
+// TOOL SECTIONS
+function renderToolSections(area) {
+  // Notes
+  const noteSec = document.createElement('section');
+  noteSec.id = 'sec-notes';
+  noteSec.className = 'section-block';
+  noteSec.innerHTML = `
+  <div class="section-header">
+    <div style="width:10px;height:10px;border-radius:50%;background:#fbbf24;flex-shrink:0"></div>
+    <div class="section-title">📝 Notes & Snippets</div>
+    <div class="section-spacer"></div>
+    <button class="tbtn" onclick="addNote()">+ Note</button>
+  </div>
+  <div class="note-grid" id="notes-grid"></div>
+  `;
+  area.appendChild(noteSec);
+  renderNotes();
+
+  // Formatter
+  const fmtSec = document.createElement('section');
+  fmtSec.id = 'sec-formatter';
+  fmtSec.className = 'section-block';
+  fmtSec.innerHTML = `
+    <div class="section-header">
+      <div style="width:10px;height:10px;border-radius:50%;background:#94a3b8;flex-shrink:0"></div>
+      <div class="section-title">🛠 Data Formatter</div>
+    </div>
+    <div class="purpose-box">
+      <div class="purpose-text">
+        <div class="purpose-title">What this does</div>
+        Paste a list of values (one per line or comma-separated). Convert to SQL <code style="color:var(--amber)">IN (...)</code> format, CSV, UPPER/lower, or deduplicate.
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:16px;">
+      <div class="fmt-grid">
+        <div class="fmt-col">
+          <label>Input — paste values here</label>
+          <textarea id="fmt-input" class="fmt-textarea" placeholder="25-I-VMF-28819&#10;25-I-POT-96393&#10;25-I-DSC-0008"></textarea>
+          <div class="fmt-btns">
+            <button class="fmt-btn" onclick="formatData('sql')">SQL List — 'a','b','c'</button>
+            <button class="fmt-btn" onclick="formatData('csv')">CSV — a,b,c</button>
+            <button class="fmt-btn" onclick="formatData('upper')">UPPERCASE</button>
+            <button class="fmt-btn" onclick="formatData('lower')">lowercase</button>
+            <button class="fmt-btn" onclick="formatData('lines')">One per Line</button>
+            <button class="fmt-btn" onclick="formatData('dedup')">Remove Duplicates</button>
+            <button class="fmt-btn" onclick="formatData('count')">Count Items</button>
+            <button class="fmt-btn" onclick="formatData('trim')">Trim Spaces</button>
+          </div>
+        </div>
+        <div class="fmt-col">
+          <label>Output — copy from here</label>
+          <textarea id="fmt-output" class="fmt-textarea" readonly placeholder="Formatted output appears here..."></textarea>
+          <div class="fmt-btns">
+            <button class="fmt-btn" onclick="copyFmtOutput()">⎘ Copy Output</button>
+            <button class="fmt-btn" onclick="swapFmtIO()">⇄ Swap</button>
+            <button class="fmt-btn" onclick="document.getElementById('fmt-input').value='';document.getElementById('fmt-output').value='';">✕ Clear</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  area.appendChild(fmtSec);
+
+  // SQL Differ
+  const diffSec = document.createElement('section');
+  diffSec.id = 'sec-diff';
+  diffSec.className = 'section-block';
+  diffSec.innerHTML = `
+    <div class="section-header">
+      <div style="width:10px;height:10px;border-radius:50%;background:#60a5fa;flex-shrink:0"></div>
+      <div class="section-title">🔄 SQL Differ</div>
+    </div>
+    <div class="purpose-box">
+      <div class="purpose-text">
+        <div class="purpose-title">What this does</div>
+        Paste two SQL queries side by side to highlight line-by-line differences. Green = added, Red = removed. Useful for comparing two versions of a query.
+      </div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:16px;">
+      <div class="fmt-grid" style="margin-bottom:12px;">
+        <div class="fmt-col">
+          <label>Query A (Original)</label>
+          <textarea id="diff-a" class="fmt-textarea" style="min-height:140px;" placeholder="SELECT * FROM sales_master WHERE..."></textarea>
+        </div>
+        <div class="fmt-col">
+          <label>Query B (Modified)</label>
+          <textarea id="diff-b" class="fmt-textarea" style="min-height:140px;" placeholder="SELECT * FROM sales_master WHERE..."></textarea>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="fmt-btn" onclick="runDiff()">🔍 Compare</button>
+        <button class="fmt-btn" onclick="document.getElementById('diff-a').value='';document.getElementById('diff-b').value='';document.getElementById('diff-result').innerHTML='';">✕ Clear</button>
+      </div>
+      <div id="diff-result" style="background:var(--code-bg);border:1px solid var(--border);border-radius:7px;padding:12px;font-family:'JetBrains Mono',monospace;font-size:.73rem;line-height:1.8;display:none;"></div>
+    </div>
+  `;
+  area.appendChild(diffSec);
+
+  // Script Library
+  const libSec = document.createElement('section');
+  libSec.id = 'sec-library';
+  libSec.className = 'section-block';
+  libSec.innerHTML = `
+    <div class="section-header">
+      <div style="width:10px;height:10px;border-radius:50%;background:#a78bfa;flex-shrink:0"></div>
+      <div class="section-title">📂 Script Library</div>
+    </div>
+    <div class="purpose-box">
+      <div class="purpose-text"><div class="purpose-title">What this does</div>Store server script file paths with purpose, step-by-step instructions and remarks for quick reference during deployments.</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:9px;padding:16px;">
+      <div style="background:var(--bg3);padding:12px;border-radius:7px;margin-bottom:12px;border:1px solid var(--border);">
+        <div style="font-size:.63rem;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.09em;margin-bottom:9px;" id="lib-form-label">➕ Add New Script</div>
+        <div style="display:grid;grid-template-columns:1fr 2fr 1fr;gap:8px;margin-bottom:8px;">
+          <input id="lib-name" class="runner-area" style="min-height:auto;padding:7px 9px;resize:none;" placeholder="File Name *">
+          <input id="lib-path" class="runner-area" style="min-height:auto;padding:7px 9px;resize:none;" placeholder="Full Path (click to copy)">
+          <input id="lib-remark" class="runner-area" style="min-height:auto;padding:7px 9px;resize:none;" placeholder="Short Remark">
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px;">
+          <div>
+            <div style="font-size:.6rem;font-weight:700;color:var(--cyan);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Purpose / Description</div>
+            <textarea id="lib-purpose" class="runner-area" style="min-height:60px;padding:7px 9px;resize:vertical;font-family:'Syne',sans-serif;font-size:.76rem;color:var(--text2);" placeholder="What does this script do? When should it be used?"></textarea>
+          </div>
+          <div>
+            <div style="font-size:.6rem;font-weight:700;color:var(--purple);text-transform:uppercase;letter-spacing:.07em;margin-bottom:3px;">Steps to Follow</div>
+            <textarea id="lib-steps" class="runner-area" style="min-height:60px;padding:7px 9px;resize:vertical;font-family:'Syne',sans-serif;font-size:.76rem;color:var(--text2);" placeholder="1. SSH into server
+2. Navigate to path
+3. Run the script"></textarea>
+          </div>
+        </div>
+        <div style="display:flex;gap:7px;justify-content:flex-end;">
+          <button id="lib-cancel-btn" class="tbtn" onclick="cancelEditScript()" style="display:none;">✕ Cancel</button>
+          <button id="lib-add-btn" class="tbtn tbtn-primary" onclick="saveScriptItem()">+ Add</button>
+        </div>
+      </div>
+      <table class="lib-table">
+        <thead><tr><th style="width:36px;">#</th><th>File Name</th><th>Path</th><th>Remark</th><th style="min-width:160px;">Purpose</th><th style="min-width:180px;">Steps to Follow</th><th style="width:80px;">Actions</th></tr></thead>
+        <tbody id="lib-table-body"></tbody>
+      </table>
+    </div>
+  `;
+  area.appendChild(libSec);
+  renderLibrary();
+}
+
+// ════════════════════════════════════
+// DETECT SQL TAGS
+// ════════════════════════════════════
+function detectTags(sql) {
+  const u = sql.toUpperCase();
+  const tags = [];
+  if (u.includes('SELECT')) tags.push('SELECT');
+  if (u.includes('UPDATE')) tags.push('UPDATE');
+  if (u.includes('DELETE')) tags.push('DELETE');
+  if (u.includes('BEGIN')) tags.push('BEGIN');
+  return tags;
+}
+
+// ════════════════════════════════════
+// SYNTAX HIGHLIGHT + VAR INJECT
+// ════════════════════════════════════
+function renderSQL(sql, secId) {
+  const vals = getInputValues(secId);
+  let out = sql;
+  // Step 1: mark filled values with sentinels
+  Object.keys(vals).forEach(k => {
+    const val = vals[k];
+    if (val) {
+      const re = new RegExp(`\\{\\{${k}\\}\\}`, 'g');
+      out = out.replace(re, `\x00VAR_S\x00${val}\x00VAR_E\x00`);
+    }
+  });
+  // Step 2: mark unfilled placeholders with sentinels
+  out = out.replace(/\{\{([^}]+)\}\}/g, (_,k)=>`\x00PH_S\x00${k}\x00PH_E\x00`);
+  // Step 3: escape HTML (sentinels contain no HTML chars so they survive)
+  out = out.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  // Step 4: syntax highlight first (before injecting spans, so regexes don't eat span tags)
+  const kws = ['SELECT','FROM','WHERE','JOIN','LEFT JOIN','RIGHT JOIN','INNER JOIN','AND','OR','IN','NOT IN','ON','AS','SET','UPDATE','DELETE','INSERT INTO','VALUES','GROUP BY','ORDER BY','HAVING','LIMIT','BEGIN','COMMIT','ROLLBACK','CREATE','DROP','ALTER','TABLE','INDEX','DISTINCT','COUNT','SUM','AVG','MAX','MIN','UNION','ALL','IS NULL','IS NOT NULL','NULL','NOT','CASE','WHEN','THEN','ELSE','END','WITH','RETURNING','COALESCE','LIKE'];
+  kws.forEach(kw => {
+    out = out.replace(new RegExp(`(?<![a-z_])${kw}(?![a-z_])`, 'g'), `<span class="kw">${kw}</span>`);
+  });
+  out = out.replace(/'([^']*)'/g, `<span class="str">'$1'</span>`);
+  out = out.replace(/(--[^\n]*)/g, `<span class="cmt">$1</span>`);
+  out = out.replace(/(#[^\n]*)/g, `<span class="cmt">$1</span>`);
+  // Step 5: now safely restore sentinels as actual HTML spans
+  out = out.replace(/\x00VAR_S\x00(.*?)\x00VAR_E\x00/g, (_,v)=>`<span class="var-highlight">${v}</span>`);
+  out = out.replace(/\x00PH_S\x00(.*?)\x00PH_E\x00/g, (_,k)=>`<span style="color:#a78bfa">{{${k}}}</span>`);
+  return out;
+}
+
+
+function getCardInputValues(qId) {
+  const q = STATE.queries.find(x=>x.id===qId);
+  if (!q) return {};
+  const vals = {};
+  const usedKeys = [...new Set([...(q.sql||'').matchAll(/{{([^}]+)}}/g)].map(m=>m[1]))];
+  usedKeys.forEach(k => {
+    const el = document.getElementById('cinp-'+qId+'-'+k);
+    if (el && el.value.trim()) vals[k] = el.value.trim();
+  });
+  return vals;
+}
+
+function renderCardSQL(sql, qId) {
+  const vals = getCardInputValues(qId);
+  let out = sql;
+  Object.keys(vals).forEach(k => {
+    const re = new RegExp('\\{\\{'+k+'\\}\\}', 'g');
+    out = out.replace(re, '\x00VAR_S\x00'+vals[k]+'\x00VAR_E\x00');
+  });
+  out = out.replace(/{{([^}]+)}}/g, (_,k)=>'\x00PH_S\x00'+k+'\x00PH_E\x00');
+  out = out.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const kws = ['SELECT','FROM','WHERE','JOIN','LEFT JOIN','RIGHT JOIN','INNER JOIN','AND','OR','IN','NOT IN','ON','AS','SET','UPDATE','DELETE','INSERT INTO','VALUES','GROUP BY','ORDER BY','HAVING','LIMIT','BEGIN','COMMIT','ROLLBACK','CREATE','DROP','ALTER','TABLE','INDEX','DISTINCT','COUNT','SUM','AVG','MAX','MIN','UNION','ALL','IS NULL','IS NOT NULL','NULL','NOT','CASE','WHEN','THEN','ELSE','END','WITH','RETURNING','COALESCE','LIKE'];
+  kws.forEach(kw => {
+    out = out.replace(new RegExp('(?<![a-z_])'+kw+'(?![a-z_])','g'), '<span class="kw">'+kw+'</span>');
+  });
+  out = out.replace(/'([^']*)'/g, '<span class="str">\'$1\'</span>');
+  out = out.replace(/(--[^\n]*)/g, '<span class="cmt">$1</span>');
+  out = out.replace(/(#[^\n]*)/g, '<span class="cmt">$1</span>');
+  out = out.replace(/\x00VAR_S\x00(.*?)\x00VAR_E\x00/g, (_,v)=>'<span class="var-highlight">'+v+'</span>');
+  out = out.replace(/\x00PH_S\x00(.*?)\x00PH_E\x00/g, (_,k)=>'<span style="color:#a78bfa">{{'+k+'}}</span>');
+  return out;
+}
+
+function getInputValues(secId) {
+  const vals = {};
+  const sec = STATE.sections.find(s=>s.id===secId);
+  (sec?.inputs||[]).forEach(k => {
+    const el = document.getElementById(`inp-${secId}-${k}`);
+    if (el && el.value.trim()) vals[k] = el.value.trim();
+  });
+  return vals;
+}
+
+// ════════════════════════════════════
+// INPUT HANDLING
+// ════════════════════════════════════
+function handleInput(el, secId, key) {
+  el.classList.toggle('has-value', !!el.value.trim());
+}
+
+function handleCardInput(el, qId, secId, key) {
+  el.classList.toggle('has-value', !!el.value.trim());
+  // update fill counter
+  const q = STATE.queries.find(x=>x.id===qId);
+  if (q) {
+    const usedKeys = [...new Set([...(q.sql||'').matchAll(/\{\{([^}]+)\}\}/g)].map(m=>m[1]))];
+    const filled = usedKeys.filter(k => {
+      const e = document.getElementById(`cinp-${qId}-${k}`);
+      return e && e.value.trim();
+    }).length;
+    const fs = document.getElementById(`cfill-${qId}`);
+    if (fs) fs.innerHTML = `<span>${filled}</span>/${usedKeys.length} filled`;
+    const cb = document.getElementById('code-'+qId);
+    if (cb) cb.innerHTML = renderCardSQL(q.sql||'', qId);
+  }
+}
+
+function saveHistory(key, val, secId) {
+  if (!val.trim()) return;
+  const k = `${secId}:${key}`;
+  if (!STATE.inputHistory[k]) STATE.inputHistory[k]=[];
+  STATE.inputHistory[k] = [val,...STATE.inputHistory[k].filter(v=>v!==val)].slice(0,15);
+  saveData();
+  const dl = document.getElementById(`hist-${secId}-${key}`);
+  if (dl) dl.innerHTML = STATE.inputHistory[k].map(v=>`<option value="${escHtml(v)}">`).join('');
+}
+
+function clearInputs(secId) {
+  // legacy stub
+}
+
+function clearCardInputs(qId, secId) {
+  const q = STATE.queries.find(x=>x.id===qId);
+  if (!q) return;
+  const usedKeys = [...new Set([...(q.sql||'').matchAll(/\{\{([^}]+)\}\}/g)].map(m=>m[1]))];
+  usedKeys.forEach(k => {
+    const el = document.getElementById(`cinp-${qId}-${k}`);
+    if (el) { el.value=''; el.classList.remove('has-value'); }
+  });
+  const fs = document.getElementById(`cfill-${qId}`);
+  if (fs) fs.innerHTML = `<span>0</span>/${usedKeys.length} filled`;
+  const cb = document.getElementById('code-'+qId);
+  if (cb) cb.innerHTML = renderCardSQL(q.sql||'', qId);
+}
+
+// ════════════════════════════════════
+// COPY
+// ════════════════════════════════════
+function copyQuery(qId, secId) {
+  const q = STATE.queries.find(x=>x.id===qId);
+  if (!q) return;
+  let sql = q.sql||'';
+  const vals = getCardInputValues(qId);
+  Object.keys(vals).forEach(k => {
+    sql = sql.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), vals[k]);
+  });
+  navigator.clipboard.writeText(sql).then(() => {
+    ['copybtn-'+qId,'copybtn2-'+qId].forEach(id => {
+      const btn = document.getElementById(id);
+      if (btn) {
+        const orig = btn.innerHTML;
+        btn.innerHTML = '✓ Copied!';
+        btn.classList.add('copied');
+        setTimeout(()=>{ btn.innerHTML=orig; btn.classList.remove('copied'); }, 1800);
+      }
+    });
+    showToast('Query copied to clipboard');
+  });
+}
+
+// ════════════════════════════════════
+// TOGGLE CARD
+// ════════════════════════════════════
+function toggleCard(header) {
+  const card = header.closest('.query-card');
+  card.classList.toggle('open');
+}
+
+// ════════════════════════════════════
+// PIN
+// ════════════════════════════════════
+function togglePin(qId) {
+  if (!STATE.pins) STATE.pins=[];
+  if (STATE.pins.includes(qId)) {
+    STATE.pins = STATE.pins.filter(p=>p!==qId);
+    showToast('Unpinned');
+  } else {
+    STATE.pins.push(qId);
+    showToast('📌 Pinned to Home');
+  }
+  saveData();
+  renderAll();
+}
+
+// ════════════════════════════════════
+// QUERY MODAL
+// ════════════════════════════════════
+function openQueryModal(sectionId) {
+  editQueryId = null;
+  document.getElementById('aqm-title').textContent = 'Add New Query';
+  document.getElementById('aq-title').value = '';
+  document.getElementById('aq-purpose').value = '';
+  document.getElementById('aq-sql').value = '';
+  document.getElementById('aq-steps').value = '';
+  document.getElementById('detected-vars').textContent = 'none yet';
+  populateSectionSelect(sectionId);
+  document.getElementById('addQueryModal').classList.add('open');
+  const sqlEl = document.getElementById('aq-sql');
+  sqlEl.oninput = detectVarsLive;
+}
+
+function detectVarsLive() {
+  const sql = document.getElementById('aq-sql').value;
+  const vars = [...new Set([...sql.matchAll(/\{\{([^}]+)\}\}/g)].map(m=>m[1]))];
+  const el = document.getElementById('detected-vars');
+  if (vars.length) {
+    el.textContent = vars.map(v=>`{{${v}}}`).join(', ');
+    el.style.color = 'var(--purple)';
+  } else {
+    el.textContent = 'none yet';
+    el.style.color = 'var(--text3)';
+  }
+}
+
+function populateSectionSelect(selected) {
+  const sel = document.getElementById('aq-section');
+  sel.innerHTML = STATE.sections.map(s =>
+    `<option value="${s.id}" ${s.id===selected?'selected':''}>${s.name}</option>`
+  ).join('');
+}
+
+function editQuery(id) {
+  const q = STATE.queries.find(x=>x.id===id);
+  if (!q) return;
+  editQueryId = id;
+  document.getElementById('aqm-title').textContent = 'Edit Query';
+  document.getElementById('aq-title').value = q.title;
+  document.getElementById('aq-purpose').value = q.purpose||'';
+  document.getElementById('aq-sql').value = q.sql||'';
+  document.getElementById('aq-steps').value = q.steps||'';
+  populateSectionSelect(q.sectionId);
+  detectVarsLive();
+  document.getElementById('addQueryModal').classList.add('open');
+  document.getElementById('aq-sql').oninput = detectVarsLive;
+}
+
+function saveQuery() {
+  const title = document.getElementById('aq-title').value.trim();
+  const sql = document.getElementById('aq-sql').value.trim();
+  if (!title || !sql) { showToast('Title and SQL required','#f87171'); return; }
+  const secId = document.getElementById('aq-section').value;
+  const purpose = document.getElementById('aq-purpose').value.trim();
+  const steps = document.getElementById('aq-steps').value.trim();
+  // auto-add variables
+  const vars = [...new Set([...sql.matchAll(/\{\{([^}]+)\}\}/g)].map(m=>m[1]))];
+  const sec = STATE.sections.find(s=>s.id===secId);
+  if (sec) {
+    vars.forEach(v => {
+      if (!STATE.inputs.find(i=>i.key===v)) STATE.inputs.push({key:v,label:v,placeholder:v});
+      if (!sec.inputs) sec.inputs=[];
+      if (!sec.inputs.includes(v)) sec.inputs.push(v);
+    });
+  }
+  if (editQueryId) {
+    const idx = STATE.queries.findIndex(q=>q.id===editQueryId);
+    STATE.queries[idx] = {id:editQueryId,sectionId:secId,title,purpose,steps,sql};
+  } else {
+    STATE.queries.push({id:'q-'+Date.now(),sectionId:secId,title,purpose,steps,sql});
+  }
+  saveData(); closeModal('addQueryModal'); renderAll();
+  showToast(editQueryId ? 'Query updated ✓' : 'Query added ✓');
+}
+
+function deleteQueryConfirm(id) {
+  const q = STATE.queries.find(x=>x.id===id);
+  showConfirm({
+    icon: '🗑️',
+    title: 'Delete Query?',
+    msg: q ? `"${q.title}" will be permanently removed.` : 'This query will be permanently removed.',
+    okLabel: '× Delete',
+    okClass: 'tbtn-danger',
+    onOk: () => deleteQuery(id)
+  });
+}
+
+function deleteQuery(id) {
+  STATE.queries = STATE.queries.filter(q=>q.id!==id);
+  STATE.pins = (STATE.pins||[]).filter(p=>p!==id);
+  saveData(); renderAll(); showToast('Query deleted','#f87171');
+}
+
+// ════════════════════════════════════
+// SECTIONS
+// ════════════════════════════════════
+function openSectionModal() {
+  document.getElementById('sec-name').value='';
+  document.getElementById('sec-desc').value='';
+  selectedSecColor = SEC_COLORS[0];
+  const cp = document.getElementById('sec-color-picker');
+  cp.innerHTML = SEC_COLORS.map(c=>`
+    <div onclick="selectedSecColor='${c}';document.querySelectorAll('.cswatch').forEach(s=>s.style.outline='');this.style.outline='2px solid white'"
+     class="cswatch" style="width:22px;height:22px;border-radius:50%;background:${c};cursor:pointer;${c===selectedSecColor?'outline:2px solid white':''}"></div>
+  `).join('');
+  document.getElementById('addSectionModal').classList.add('open');
+}
+
+function saveSection() {
+  const name = document.getElementById('sec-name').value.trim();
+  if (!name) { showToast('Section name required','#f87171'); return; }
+  const id = 'sec-'+Date.now();
+  STATE.sections.push({id,name,color:selectedSecColor,desc:document.getElementById('sec-desc').value.trim(),inputs:[]});
+  saveData(); closeModal('addSectionModal'); renderAll();
+  showToast('Section created ✓');
+  setTimeout(()=>switchModule(id),200);
+}
+
+function deleteSectionConfirm(id, e) {
+  if(e) e.stopPropagation();
+  const s = STATE.sections.find(x=>x.id===id);
+  const qCount = STATE.queries.filter(q=>q.sectionId===id).length;
+  showConfirm({
+    icon: '🗑️',
+    title: 'Delete Section?',
+    msg: s ? `"${s.name}" and all ${qCount} quer${qCount===1?'y':'ies'} inside it will be permanently removed.` : 'This section and all its queries will be permanently removed.',
+    okLabel: '× Delete Section',
+    okClass: 'tbtn-danger',
+    onOk: () => deleteSection(id)
+  });
+}
+
+function deleteSection(id) {
+  STATE.sections = STATE.sections.filter(s=>s.id!==id);
+  STATE.queries = STATE.queries.filter(q=>q.sectionId!==id);
+  if(STATE.activeModule===id) STATE.activeModule='home';
+  saveData(); renderAll(); showToast('Section deleted','#f87171');
+}
+
+// ════════════════════════════════════
+// NOTES
+// ════════════════════════════════════
+function addNote() {
+  const title = prompt('Note title (e.g. Server Commands):');
+  if (!title) return;
+  const content = prompt('Note content (you can paste multi-line):', '');
+  if (!STATE.notes) STATE.notes=[];
+  STATE.notes.unshift({id:'n'+Date.now(),title,content:content||'',created:Date.now()});
+  saveData(); renderNotes(); showToast('Note added ✓');
+}
+
+function editNote(id) {
+  const n = (STATE.notes||[]).find(x=>x.id===id);
+  if (!n) return;
+  const t = prompt('Title:',n.title); if(t===null) return;
+  const c = prompt('Content:',n.content); if(c===null) return;
+  n.title=t; n.content=c||''; saveData(); renderNotes(); showToast('Note updated');
+}
+
+function deleteNote(id) {
+  if (!confirm('Delete note?')) return;
+  STATE.notes = (STATE.notes||[]).filter(n=>n.id!==id);
+  saveData(); renderNotes();
+}
+
+function renderNotes() {
+  const grid = document.getElementById('notes-grid');
+  if (!grid) return;
+  if (!STATE.notes || STATE.notes.length === 0) {
+    grid.innerHTML = `<div style="color:var(--text3);font-size:.8rem;font-style:italic;padding:30px;text-align:center;">No notes yet. Click + Note to add one.</div>`;
+    return;
+  }
+  grid.innerHTML = STATE.notes.map(n => `
+    <div class="note-card collapsed" id="note-${n.id}">
+      <div class="note-head" onclick="toggleNote(this)">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="note-toggle">▶</button>
+          <span class="note-title-text">${escHtml(n.title)}</span>
+        </div>
+        <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
+          <button class="note-del" onclick="editNote('${n.id}');event.stopImmediatePropagation()" title="Edit">✎</button>
+          <button class="note-del" onclick="deleteNote('${n.id}');event.stopImmediatePropagation()" title="Delete">×</button>
+        </div>
+      </div>
+      <div class="note-body">
+        <div class="note-content">${escHtml(n.content)}</div>
+        <div class="note-date">${new Date(n.created).toLocaleDateString('en-IN')} ${new Date(n.created).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit'})}</div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function toggleNote(headElement) {
+  const card = headElement.closest('.note-card');
+  if (!card) return;
+  const wasCollapsed = card.classList.contains('collapsed');
+  card.classList.toggle('collapsed');
+  const toggleBtn = headElement.querySelector('.note-toggle');
+  if (toggleBtn) {
+    toggleBtn.textContent = wasCollapsed ? '▼' : '▶';
+  }
+}
+
+// ════════════════════════════════════
+// FORMATTER
+// ════════════════════════════════════
+function formatData(type) {
+  const v = document.getElementById('fmt-input').value;
+  if (!v) return;
+  let items = v.replace(/\n/g,',').split(',').map(x=>x.trim()).filter(x=>x);
+  if (type==='upper') document.getElementById('fmt-output').value = items.map(x=>x.toUpperCase()).join('\n');
+  else if (type==='lower') document.getElementById('fmt-output').value = items.map(x=>x.toLowerCase()).join('\n');
+  else if (type==='csv') document.getElementById('fmt-output').value = items.join(',');
+  else if (type==='lines') document.getElementById('fmt-output').value = items.join('\n');
+  else if (type==='dedup') { const u=[...new Set(items)]; document.getElementById('fmt-output').value = u.join('\n'); showToast(`${items.length - u.length} duplicates removed`); }
+  else if (type==='count') { document.getElementById('fmt-output').value = `Total: ${items.length} items`; }
+  else if (type==='trim') { items=items.map(x=>x.replace(/\s+/g,' ').trim()); document.getElementById('fmt-output').value = items.join('\n'); }
+  else document.getElementById('fmt-output').value = items.map(x=>`'${x}'`).join(',');
+}
+
+function copyFmtOutput() {
+  const v = document.getElementById('fmt-output').value;
+  if (!v) return;
+  navigator.clipboard.writeText(v).then(() => showToast('Output copied ✓'));
+}
+
+function swapFmtIO() {
+  const a = document.getElementById('fmt-input').value;
+  const b = document.getElementById('fmt-output').value;
+  document.getElementById('fmt-input').value = b;
+  document.getElementById('fmt-output').value = a;
+}
+
+// ════════════════════════════════════
+// SQL DIFFER
+// ════════════════════════════════════
+function runDiff() {
+  const a = document.getElementById('diff-a').value.split('\n');
+  const b = document.getElementById('diff-b').value.split('\n');
+  const result = document.getElementById('diff-result');
+  result.style.display = 'block';
+  const maxLen = Math.max(a.length, b.length);
+  let html = '';
+  for (let i = 0; i < maxLen; i++) {
+    const lineA = a[i]!==undefined ? a[i] : null;
+    const lineB = b[i]!==undefined ? b[i] : null;
+    if (lineA === lineB) {
+      html += `<div style="color:#abb2bf;padding:1px 4px;"> ${escHtml(lineA||'')}</div>`;
+    } else {
+      if (lineA !== null) html += `<div class="diff-removed" style="padding:1px 4px;">− ${escHtml(lineA)}</div>`;
+      if (lineB !== null) html += `<div class="diff-added" style="padding:1px 4px;">+ ${escHtml(lineB)}</div>`;
+    }
+  }
+  result.innerHTML = html || '<span style="color:var(--text3)">No differences found.</span>';
+}
+
+// ════════════════════════════════════
+// SCRIPT LIBRARY
+// ════════════════════════════════════
+let editScriptId = null;
+
+function saveScriptItem() {
+  const name = document.getElementById('lib-name').value.trim();
+  const path = document.getElementById('lib-path').value.trim();
+  const remark = document.getElementById('lib-remark').value.trim();
+  const purpose = document.getElementById('lib-purpose').value.trim();
+  const steps = document.getElementById('lib-steps').value.trim();
+  if (!name && !path) return;
+  if (!STATE.scripts) STATE.scripts=[];
+  if (editScriptId) {
+    const idx = STATE.scripts.findIndex(s=>s.id===editScriptId);
+    if (idx>-1) STATE.scripts[idx] = {...STATE.scripts[idx], name, path, remark, purpose, steps};
+    editScriptId = null;
+    document.getElementById('lib-add-btn').textContent = '+ Add';
+    document.getElementById('lib-add-btn').title = '';
+    document.getElementById('lib-cancel-btn').style.display = 'none';
+    showToast('Script updated ✓');
+  } else {
+    STATE.scripts.push({id:'s'+Date.now(),name,path,remark,purpose,steps});
+    showToast('Script saved ✓');
+  }
+  saveData();
+  document.getElementById('lib-name').value='';
+  document.getElementById('lib-path').value='';
+  document.getElementById('lib-remark').value='';
+  document.getElementById('lib-purpose').value='';
+  document.getElementById('lib-steps').value='';
+  renderLibrary();
+}
+
+function editScript(id) {
+  const s = (STATE.scripts||[]).find(x=>x.id===id);
+  if (!s) return;
+  editScriptId = id;
+  document.getElementById('lib-name').value = s.name||'';
+  document.getElementById('lib-path').value = s.path||'';
+  document.getElementById('lib-remark').value = s.remark||'';
+  document.getElementById('lib-purpose').value = s.purpose||'';
+  document.getElementById('lib-steps').value = s.steps||'';
+  const addBtn = document.getElementById('lib-add-btn');
+  addBtn.textContent = '✓ Update';
+  addBtn.title = 'Save changes';
+  document.getElementById('lib-cancel-btn').style.display = 'inline-block';
+  document.getElementById('lib-name').focus();
+  document.getElementById('sec-library').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function cancelEditScript() {
+  editScriptId = null;
+  document.getElementById('lib-name').value='';
+  document.getElementById('lib-path').value='';
+  document.getElementById('lib-remark').value='';
+  document.getElementById('lib-purpose').value='';
+  document.getElementById('lib-steps').value='';
+  document.getElementById('lib-add-btn').textContent='+ Add';
+  document.getElementById('lib-cancel-btn').style.display='none';
+}
+
+function renderLibrary() {
+  const tbody = document.getElementById('lib-table-body');
+  if (!tbody) return;
+  if (!STATE.scripts||STATE.scripts.length===0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:20px;">No scripts saved yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = STATE.scripts.map((s,i)=>{
+    const stepLines = (s.steps||'').split('\n').filter(Boolean);
+    const stepsHtml = stepLines.length ? stepLines.map((l,n)=>`<div style="display:flex;gap:6px;align-items:flex-start;margin-bottom:3px;"><span style="width:16px;height:16px;border-radius:3px;background:var(--purple-dim);color:var(--purple);font-family:JetBrains Mono,monospace;font-size:.58rem;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${n+1}</span><span style="font-size:.72rem;color:var(--text2);line-height:1.4;">${escHtml(l.replace(/^\d+\.\s*/,''))}</span></div>`).join('') : '';
+    return '<tr>'
+      +'<td style="color:var(--text3);font-family:JetBrains Mono,monospace;font-size:.68rem;">'+(i+1)+'</td>'
+      +'<td style="font-weight:600;color:var(--text);">'+escHtml(s.name)+'</td>'
+      +'<td><code style="font-family:JetBrains Mono,monospace;font-size:.72rem;color:var(--cyan);cursor:pointer;" onclick="copyText(\''+escHtml(s.path)+'\')" title="Click to copy">'+escHtml(s.path)+'</code></td>'
+      +'<td style="color:var(--text2);">'+escHtml(s.remark)+'</td>'
+      +'<td>'+(s.purpose ? '<div style="font-size:.73rem;color:var(--text2);line-height:1.5;background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--cyan);border-radius:0 5px 5px 0;padding:5px 9px;">'+escHtml(s.purpose)+'</div>' : '<span style="color:var(--text3);font-size:.7rem;">\u2014</span>')+'</td>'
+      +'<td>'+(stepsHtml ? '<div style="background:var(--bg);border:1px solid var(--border);border-left:2px solid var(--purple);border-radius:0 5px 5px 0;padding:5px 9px;">'+stepsHtml+'</div>' : '<span style="color:var(--text3);font-size:.7rem;">\u2014</span>')+'</td>'
+      +'<td><div style="display:flex;gap:4px;flex-direction:column;"><button class="qbtn" onclick="editScript(\''+s.id+'\')" style="font-size:.65rem;padding:3px 7px;">\u270e Edit</button><button class="qbtn qbtn-del" onclick="deleteScript(\''+s.id+'\')" style="font-size:.65rem;padding:3px 7px;">\u00d7 Del</button></div></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function deleteScript(id) {
+  STATE.scripts = (STATE.scripts||[]).filter(s=>s.id!==id);
+  saveData(); renderLibrary(); showToast('Deleted','#f87171');
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(()=>showToast('Copied ✓'));
+}
+
+// ════════════════════════════════════
+// VERSIONS & FILE SAVING LOGIC
+// ════════════════════════════════════
+function openVersionModal() {
+  renderVersions();
+  document.getElementById('versionModal').classList.add('open');
+}
+
+function openSaveVersionModal() {
+  document.getElementById('saveVerRemark').value = '';
+  document.getElementById('saveVerModal').classList.add('open');
+  setTimeout(() => document.getElementById('saveVerRemark').focus(), 100);
+}
+
+function closeSaveVerModal() {
+  document.getElementById('saveVerModal').classList.remove('open');
+}
+
+// Safely generate the HTML content for saving
+function generateHtmlString() {
+  // Update lastModified right before saving so this file is the "newest"
+  STATE.lastModified = Date.now(); 
+  
+  const json = JSON.stringify(STATE);
+  const safeJson = json.replace(/<\/script>/g,'<\\/script>');
+  
+  // Create a copy of the current HTML, keeping the data markers
+  const currentHtml = document.documentElement.outerHTML;
+  const newHtml = '<!DOCTYPE html>\n<html lang="' + document.documentElement.lang + '">\n' + 
+      currentHtml.replace(
+        /\/\/ === DATA START ===[\s\S]*?\/\/ === DATA END ===/,
+        '// === DATA START ===\nconst EMBEDDED_DATA = ' + safeJson + ';\n// === DATA END ==='
+      );
+      
+  return newHtml;
+}
+
+// Generates filename like: sql_hub_v2_2024_10_27.html
+function getDownloadFilename(remark = null) {
+  STATE.saveCount = (STATE.saveCount || 0) + 1; // Auto-increment version count
+  
+  const d = new Date();
+  const dateStr = d.getFullYear() + '_' + String(d.getMonth()+1).padStart(2,'0') + '_' + String(d.getDate()).padStart(2,'0');
+  
+  let baseName = `sql_hub_v${STATE.saveCount}_${dateStr}`;
+  if (remark) {
+    const safeRemark = remark.replace(/[^a-z0-9]/gi, '_').slice(0, 30);
+    baseName += `_${safeRemark}`;
+  }
+  return baseName + '.html';
+}
+
+function confirmSaveVersion() {
+  const remark = document.getElementById('saveVerRemark').value.trim() || 'Snapshot';
+  closeSaveVerModal();
+  
+  if (!STATE.versions) STATE.versions=[];
+  STATE.versions.unshift({date:new Date().toLocaleString('en-IN'),remark,data:JSON.stringify(STATE)});
+  STATE.versions = STATE.versions.slice(0,20);
+  
+  _saveVersionToFile(remark); // Creates file download
+  renderVersions();
+  showToast('Version saved & downloaded ✓');
+}
+
+function _saveVersionToFile(remark) {
+  const html = generateHtmlString();
+  const blob = new Blob([html], {type: 'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = getDownloadFilename(remark);
+  a.click();
+  saveData(); // Commit the saveCount and lastModified locally too
+}
+
+function saveToFile() {
+  const html = generateHtmlString();
+  const blob = new Blob([html], {type:'text/html'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = getDownloadFilename(); // Default name with increment + date
+  a.click();
+  saveData(); // Commit the saveCount and lastModified locally too
+  showToast('File saved ✓');
+}
+
+function renderVersions() {
+  const el = document.getElementById('version-list');
+  if (!STATE.versions?.length) {
+    el.innerHTML = '<div style="color:var(--text3);font-size:.8rem;text-align:center;padding:20px;">No snapshots yet</div>';
+    return;
+  }
+  el.innerHTML = STATE.versions.map((v,i)=>`
+    <div class="ver-item">
+      <div>
+        <div class="ver-date">${v.date}</div>
+        <div class="ver-remark">${escHtml(v.remark)}</div>
+      </div>
+      <button class="tbtn" onclick="restoreVersion(${i})">↺ Restore</button>
+    </div>
+  `).join('');
+}
+
+function restoreVersion(i) {
+  if (!confirm('Restore this snapshot? Current data will be overwritten.')) return;
+  const v = STATE.versions[i];
+  const vs = STATE.versions;
+  STATE = JSON.parse(v.data);
+  STATE.versions = vs;
+  STATE.lastModified = Date.now(); // Force this to be newest
+  saveData(); 
+  renderAll(); 
+  closeModal('versionModal');
+  showToast('Snapshot restored ✓');
+}
+
+// ════════════════════════════════════
+// GUIDE
+// ════════════════════════════════════
+function openGuide() { document.getElementById('guideModal').classList.add('open'); }
+
+// ════════════════════════════════════
+// SEARCH
+// ════════════════════════════════════
+function filterContent() {
+  const term = document.getElementById('global-search').value.toLowerCase();
+  if (!term) return;
+  // Switch to all-sections view for search
+  STATE.activeModule = 'all';
+  renderAll();
+  setTimeout(() => {
+    document.querySelectorAll('section').forEach(sec => {
+      if (!sec.id.startsWith('sec-')) return;
+      let hasMatch = false;
+      const titleEl = sec.querySelector('.section-title');
+      if (titleEl && titleEl.textContent.toLowerCase().includes(term)) hasMatch = true;
+      sec.querySelectorAll('.query-card').forEach(card => {
+        const match = card.textContent.toLowerCase().includes(term);
+        card.style.display = match?'':'none';
+        if (match) hasMatch = true;
+      });
+      sec.style.display = (hasMatch||term==='')?'':'none';
+    });
+  }, 50);
+}
+
+// ════════════════════════════════════
+// SIDEBAR TOGGLE
+// ════════════════════════════════════
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  const sb = document.getElementById('main-sidebar');
+  sb.classList.toggle('collapsed', !sidebarOpen);
+}
+
+// ════════════════════════════════════
+// SCROLL TO TOOL
+// ════════════════════════════════════
+function scrollToTool(id) {
+  // tools are always rendered; just scroll
+  const el = document.getElementById(id);
+  if (el) { el.scrollIntoView({behavior:'smooth',block:'start'}); return; }
+  // not rendered yet — switch to home/all and wait
+  STATE.activeModule = STATE.activeModule==='home'?'home':'all';
+  renderAll();
+  setTimeout(()=>{ const e2=document.getElementById(id); if(e2) e2.scrollIntoView({behavior:'smooth',block:'start'}); },100);
+}
+
+// ════════════════════════════════════
+// HARD RESET
+// ════════════════════════════════════
+function confirmReset() {
+  showConfirm({
+    icon: '⚠️',
+    title: 'Reset to Factory Defaults?',
+    msg: 'This will permanently delete ALL custom queries, sections, notes, and saved data. This cannot be undone.',
+    okLabel: '↺ Yes, Reset',
+    okClass: 'tbtn-danger',
+    onOk: hardReset
+  });
+}
+
+function hardReset() {
+  localStorage.removeItem('sqlhub_v3');
+  location.reload();
+}
+
+// ════════════════════════════════════
+// UTILS
+// ════════════════════════════════════
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+let toastTimer;
+function showToast(msg, color) {
+  const t = document.getElementById('toast');
+  const d = document.getElementById('toast-dot');
+  document.getElementById('toast-msg').textContent = msg;
+  d.style.background = color||'var(--green)';
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+
+// ════════════════════════════════════
+// THEME TOGGLE
+// ════════════════════════════════════
+let isDarkTheme = true;
+
+function initTheme() {
+  const saved = localStorage.getItem('sqlhub_theme');
+  isDarkTheme = saved !== 'light';
+  applyTheme();
+}
+
+function toggleTheme() {
+  isDarkTheme = !isDarkTheme;
+  localStorage.setItem('sqlhub_theme', isDarkTheme ? 'dark' : 'light');
+  applyTheme();
+}
+
+function applyTheme() {
+  const html = document.documentElement;
+  const icon = document.getElementById('theme-icon');
+  if (isDarkTheme) {
+    html.classList.remove('light');
+    if (icon) icon.textContent = '🌙';
+  } else {
+    html.classList.add('light');
+    if (icon) icon.textContent = '☀️';
+  }
+}
+
+// ════════════════════════════════════
+// CUSTOM CONFIRM DIALOG
+// ════════════════════════════════════
+let _confirmCallback = null;
+
+function showConfirm({icon='⚠️', title='Are you sure?', msg='', okLabel='Confirm', okClass='tbtn-danger', onOk}) {
+  _confirmCallback = onOk;
+  document.getElementById('confirm-icon').textContent = icon;
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent = msg;
+  const okBtn = document.getElementById('confirm-ok-btn');
+  okBtn.textContent = okLabel;
+  okBtn.className = 'tbtn ' + okClass;
+  document.getElementById('confirmModal').classList.add('open');
+}
+
+function confirmOk() {
+  document.getElementById('confirmModal').classList.remove('open');
+  if (_confirmCallback) { _confirmCallback(); _confirmCallback = null; }
+}
+
+function confirmCancel() {
+  document.getElementById('confirmModal').classList.remove('open');
+  _confirmCallback = null;
+}
+
+// Close save ver modal on overlay click
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('saveVerModal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeSaveVerModal();
+  });
+  document.getElementById('confirmModal')?.addEventListener('click', function(e) {
+    if (e.target === this) confirmCancel();
+  });
+  document.getElementById('saveVerRemark')?.addEventListener('keydown', e => {
+    if (e.key === 'Enter') confirmSaveVersion();
+    if (e.key === 'Escape') closeSaveVerModal();
+  });
+});
+
+// Close modals on overlay click
+['addQueryModal','addSectionModal','versionModal','guideModal'].forEach(id => {
+  document.getElementById(id)?.addEventListener('click', function(e) {
+    if (e.target===this) this.classList.remove('open');
+  });
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape') {
+    ['addQueryModal','addSectionModal','versionModal','guideModal'].forEach(id=>closeModal(id));
+    confirmCancel();
+    closeSaveVerModal();
+  }
+});
+
+window.addEventListener('DOMContentLoaded', () => { initApp(); initTheme(); });
+</script>
+
+</body>
+</html>
+

@@ -1,0 +1,14 @@
+@import "tailwindcss";
+@import "./sqlhub-theme.css";
+
+/* Tailwind v4: keep original HTML design tokens as source of truth.
+   Theme classes (.topbar, .sidebar, .query-card, ...) come from sqlhub-theme.css
+   which was extracted verbatim from SQL_HUB_v1.html. */
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Syne', sans-serif;
+}
