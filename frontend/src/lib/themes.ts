@@ -15,6 +15,12 @@ export interface ThemeDef {
 export const THEMES: ThemeDef[] = [
   { id: 'dark', name: 'Default Dark', icon: '🌙' },
   { id: 'monokai', name: 'Monokai', icon: '🎨' },
+  { id: 'dracula', name: 'Dracula', icon: '🧛' },
+  { id: 'nord', name: 'Nord', icon: '❄️' },
+  { id: 'gruvbox', name: 'Gruvbox Dark', icon: '🍂' },
+  { id: 'tokyo-night', name: 'Tokyo Night', icon: '🌃' },
+  { id: 'catppuccin', name: 'Catppuccin Mocha', icon: '🐈' },
+  { id: 'one-dark', name: 'One Dark', icon: '🌑' },
   { id: 'solarized-dark', name: 'Solarized Dark', icon: '🌊' },
   { id: 'solarized-light', name: 'Solarized Light', icon: '☀️' },
   { id: 'gray-light', name: 'Soft Gray', icon: '🌤️' },
