@@ -1,0 +1,65 @@
+import { describe, expect, it } from 'vitest';
+import { diffLines, formatData } from '../lib/format';
+import { detectTags, extractVariables, substitute } from '../lib/sql';
+import { fuzzy } from '../lib/fuzzy';
+
+describe('sql helpers', () => {
+  it('extracts {{variables}} in order, deduplicated', () => {
+    expect(extractVariables("a '{{x}}' b '{{y}}' c '{{x}}'")).toEqual(['x', 'y']);
+    expect(extractVariables('no vars')).toEqual([]);
+  });
+
+  it('substitutes all occurrences', () => {
+    expect(substitute('{{a}}-{{a}}-{{b}}', { a: '1', b: '2' })).toBe('1-1-2');
+    expect(substitute('{{a}}', {})).toBe('{{a}}');
+  });
+
+  it('detects SELECT/UPDATE/DELETE/BEGIN tags', () => {
+    expect(detectTags('select 1')).toEqual(['SELECT']);
+    expect(detectTags('BEGIN; DELETE FROM t;')).toEqual(['DELETE', 'BEGIN']);
+    expect(detectTags('-- comment')).toEqual([]);
+  });
+});
+
+describe('formatData', () => {
+  const raw = 'b\n a ,b ,,c ';
+  it('builds SQL lists', () => {
+    expect(formatData(raw, 'sql').output).toBe(`'b','a','b','c'`);
+  });
+  it('dedups with a note', () => {
+    const r = formatData(raw, 'dedup');
+    expect(r.output).toBe('b\na\nc');
+    expect(r.note).toMatch(/1 duplicates removed/);
+  });
+  it('counts and cases', () => {
+    expect(formatData(raw, 'count').output).toBe('Total: 4 items');
+    expect(formatData('aBc', 'upper').output).toBe('ABC');
+    expect(formatData('aBc', 'lower').output).toBe('abc');
+  });
+});
+
+describe('diffLines', () => {
+  it('marks same/added/removed lines', () => {
+    const out = diffLines('a\nb', 'a\nc');
+    expect(out).toEqual([
+      { kind: 'same', text: 'a' },
+      { kind: 'removed', text: 'b' },
+      { kind: 'added', text: 'c' },
+    ]);
+  });
+});
+
+describe('fuzzy', () => {
+  const items = [{ t: 'Time Converter' }, { t: 'JSON Formatter' }, { t: 'JWT Decoder' }];
+  const key = (x: { t: string }) => x.t;
+  it('returns everything on empty query', () => {
+    expect(fuzzy('', items, key)).toHaveLength(3);
+  });
+  it('matches subsequences, best first', () => {
+    expect(fuzzy('tm', items, key).map((x) => x.t)).toEqual(['Time Converter']);
+    expect(fuzzy('json', items, key).map((x) => x.t)).toEqual(['JSON Formatter']);
+  });
+  it('returns empty on no match', () => {
+    expect(fuzzy('zzz', items, key)).toEqual([]);
+  });
+});
