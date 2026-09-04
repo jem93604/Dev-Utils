@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { HashRouter, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { ModuleChips, Sidebar, Topbar } from './components/Nav';
 import { CommandPalette } from './components/CommandPalette';
@@ -15,7 +14,13 @@ import {
   TimePanel, JsonPanel, UuidPanel, YamlPanel,
 } from './components/DevTools';
 
-const qc = new QueryClient();
+export default function App() {
+  return (
+    <HashRouter>
+      <Shell />
+    </HashRouter>
+  );
+}
 
 function SectionRoute() {
   const { slug = '' } = useParams();
@@ -90,15 +95,5 @@ function Shell() {
       />
       <GuideModal open={guideOpen} onClose={() => setGuideOpen(false)} />
     </div>
-  );
-}
-
-export default function App() {
-  return (
-    <QueryClientProvider client={qc}>
-      <HashRouter>
-        <Shell />
-      </HashRouter>
-    </QueryClientProvider>
   );
 }

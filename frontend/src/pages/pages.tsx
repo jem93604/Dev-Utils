@@ -1,16 +1,14 @@
-import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import type { Query, Section } from '../lib/api';
 import { UTILS } from '../lib/utils-registry';
 import { QueryCard } from '../components/QueryCard';
 import { DifferPanel, FormatterPanel, NotesPanel, ScriptPanel } from '../components/Tools';
 import { Empty, PurposeBox, SectionHeader, StatCard } from '../components/ui';
-import { usePins, useQueries, useSections, useStats } from '../hooks/useData';
+import { usePins, useQueries, useSections, useStats, useTogglePin } from '../hooks/useData';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
 
 function usePinToggle() {
-  const [, setTick] = useState(0);
-  return (_q: Query) => setTick((t) => t + 1); // V1: visual only; API pin in online mode via QueryCard handler extension
+  return useTogglePin();
 }
 
 export function HomePage() {
