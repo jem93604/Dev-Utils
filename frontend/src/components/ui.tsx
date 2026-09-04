@@ -64,12 +64,13 @@ export function StatCard({ num, label }: { num: number; label: string }) {
   );
 }
 
-export function Empty({ icon, text, hint }: { icon: string; text: string; hint?: string }) {
+export function Empty({ icon, text, hint, action }: { icon: string; text: string; hint?: string; action?: ReactNode }) {
   return (
     <div className="empty">
       <div className="empty-icon">{icon}</div>
       <div className="empty-text">{text}</div>
       {hint && <div style={{ fontSize: '.76rem', color: 'var(--text3)' }}>{hint}</div>}
+      {action && <div style={{ marginTop: 12, display: 'flex', gap: 8, justifyContent: 'center' }}>{action}</div>}
     </div>
   );
 }

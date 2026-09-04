@@ -17,6 +17,8 @@ export function HomePage() {
   const pins = usePins();
   const stats = useStats();
   const onPin = usePinToggle();
+  const { openCreateSection, openCreateQuery } = useContentModals();
+  const isFresh = stats.sections === 0 && stats.queries === 0;
   return (
     <div className="home-wrapper visible">
       <div className="home-hero">
@@ -26,6 +28,18 @@ export function HomePage() {
           <p>Your portable POS query toolkit. Pin frequent queries for quick access. Use module tabs to focus on a section.</p>
         </div>
       </div>
+      {isFresh && (
+        <div className="purpose-box" style={{ marginBottom: 16 }}>
+          <div className="purpose-text">
+            <div className="purpose-title">🚀 Get started in 3 steps</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
+              <TButton variant="primary" onClick={openCreateSection}>1. Create a section</TButton>
+              <TButton onClick={() => openCreateQuery()}>2. Add a query</TButton>
+              <NavLink to="/utils" className="tbtn" style={{ textDecoration: 'none' }}>3. Explore utilities →</NavLink>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="home-stats">
         <StatCard num={stats.sections} label="Sections" />
         <StatCard num={stats.queries} label="Queries" />
@@ -74,10 +88,14 @@ export function SectionPage({ slug }: { slug: string }) {
 export function AllPage() {
   const sections = useSections();
   const onPin = usePinToggle();
+  const { openCreateSection } = useContentModals();
   if (sections.length === 0) {
     return (
       <div className="sections-wrapper visible">
-        <Empty icon="📋" text="No sections yet" hint="Create your first section to get started" />
+        <Empty
+          icon="📋" text="No sections yet" hint="Sections group your queries by topic"
+          action={<TButton variant="primary" onClick={openCreateSection}>+ New Section</TButton>}
+        />
       </div>
     );
   }

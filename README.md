@@ -2,6 +2,15 @@
 
 Query library + developer utilities. FastAPI backend (Postgres-ready, SQLite for local dev), React + Vite + Tailwind frontend.
 
+## What it does (for users)
+
+- **Query library** — sections grouping versioned SQL snippets with `{{variable}}` placeholders, live substitution, copy-with-values, pinning to Home, full-text search across titles, purpose, and SQL.
+- **Notes & Snippets** — sticky-note grid on Home and `/notes`, sort by created/modified/custom drag-drop order.
+- **Script Library** — server script paths with purpose + steps.
+- **13 developer utilities** — Data Formatter, SQL Differ, Time Converter, JSON Formatter, Base64/URL Codec, JWT Decoder, UUID Generator, Regex Tester, Base Converter, JSON↔YAML, Text Toolkit (hub at 🧰 Utilities, fuzzy-searchable via `Ctrl+K`).
+- **Snapshots** — one-click version snapshots with remark + destructive-restore guard (🕘 Versions).
+- **11 color themes** — picker in the topbar with live preview; add your own in 3 steps (`frontend/THEMES.md`).
+
 ## Layout
 
 - `backend/` — FastAPI + SQLAlchemy 2 + Pydantic v2, managed with `uv`
@@ -67,3 +76,76 @@ CI (`.github/workflows/ci.yml`) runs all of the above on every push/PR.
 - Small, single-purpose commits; `main` is always deployable.
 - Backend: routers in `app/api/v1/`, models in `app/models/`, validation in `app/schemas/`, shared logic in `app/services/`. UUID path params (FastAPI parses them; never pass raw strings to SQLAlchemy `Uuid` columns).
 - Frontend: reusable primitives in `components/ui.tsx`; pure logic in `lib/` with vitest coverage; new utility = 1 row in `lib/utils-registry.ts` + panel + route; new theme = see `THEMES.md`.
+
+## Self-hosting (production)
+
+No Docker files yet — plain processes behind a reverse proxy. Steps below assume Ubuntu + a domain pointing at the box.
+
+**1. Backend** — needs Python 3.11+, Postgres recommended:
+
+```sh
+cd backend
+cp .env.example .env && nano .env   # set DATABASE_URL, JWT_SECRET, CORS_ORIGINS
+uv sync
+uv run uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+```
+
+For Postgres: `DATABASE_URL=postgresql+psycopg2://user:pass@localhost:5432/sqlhub`. Tables + the `sort_order`-style columns self-create on startup (`ensure_columns()`); data migrates by simply pointing at the new DB and re-seeding if needed.
+
+**2. Frontend** — static build served by the proxy (no Node needed at runtime):
+
+```sh
+cd frontend
+npm ci && npm run build   # outputs frontend/dist/
+```
+
+**3. Reverse proxy** (Caddy example — handles HTTPS automatically):
+
+```
+yourdomain.com {
+    root * /path/to/Dev-Utils/frontend/dist
+    file_server
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8001
+    }
+    handle {
+        try_files {path} /index.html
+    }
+}
+```
+
+The built app calls same-origin `/api/v1`, so no extra CORS work when proxied this way.
+
+**4. Keep it running** — minimal systemd unit for the API (adjust paths/user):
+
+```ini
+[Unit]
+Description=Dev-Utils API
+After=network.target postgresql.service
+
+[Service]
+User=www-data
+WorkingDirectory=/path/to/Dev-Utils/backend
+ExecStart=/home/www-data/.local/bin/uv run uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 2
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+**5. Backups** — SQLite: copy `backend/sqlhub.db` nightly. Postgres: `pg_dump`. Plus periodic **Versions snapshots** in-app (stored in-DB, so they ride along with DB backups).
+
+**Security notes** — read before exposing publicly:
+
+- There is **no login yet** (`AUTH_ENABLED=false`): anyone with the URL can read *and* modify everything. Only self-host on a private network/VPN until multi-user auth lands, or front it with basic-auth at the proxy.
+- Set a real `JWT_SECRET` and correct `CORS_ORIGINS` even now, so enabling auth later is a flag flip.
+- Never commit `.env` (gitignored). `.env.example` is the template.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| Frontend shows empty lists, API `connection refused` | Backend isn't running or wrong port — check `curl 127.0.0.1:8001/health`; vite proxies `/api` → `localhost:8001` (`frontend/vite.config.ts`) |
+| `500` on detail/update/delete routes | You passed a raw string where a UUID column was expected — annotate path params as `uuid.UUID` (regression-tested) |
+| `Outdated Optimize Dep` in dev after `npm install` | Restart vite with `--force` to re-optimize |
+| Old theme stuck after upgrade | Clear `sqlhub_theme` in localStorage (legacy `'light'` auto-migrates to `'gray-light'`) |

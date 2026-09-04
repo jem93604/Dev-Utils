@@ -10,7 +10,7 @@ import {
 } from '../lib/api';
 import { extractVariables } from '../lib/sql';
 import { notifyContentChanged, useSections } from '../hooks/useData';
-import { Field, Modal, TButton, toast } from './ui';
+import { Empty, Field, Modal, TButton, toast } from './ui';
 
 const SECTION_COLORS = ['#f0a500', '#34d399', '#60a5fa', '#a78bfa', '#fb923c', '#22d3ee', '#f472b6', '#f87171'];
 
@@ -29,7 +29,7 @@ const Ctx = createContext<ContentModalsCtx>({
 
 export const useContentModals = () => useContext(Ctx);
 
-function QueryModal({ state, onClose }: { state: QueryModalState | null; onClose: () => void }) {
+function QueryModal({ state, onClose, onCreateSection }: { state: QueryModalState | null; onClose: () => void; onCreateSection: () => void }) {
   const sections = useSections();
   const editing = state?.query;
   const [title, setTitle] = useState('');
@@ -50,6 +50,18 @@ function QueryModal({ state, onClose }: { state: QueryModalState | null; onClose
   const vars = useMemo(() => extractVariables(sql), [sql]);
 
   if (!state) return null;
+
+  if (sections.length === 0 && !editing) {
+    return (
+      <Modal open onClose={onClose} title="Add Query">
+        <Empty
+          icon="📂" text="Create a section first"
+          hint="Queries live inside sections — set one up, then come back here"
+          action={<TButton variant="primary" onClick={() => { onClose(); onCreateSection(); }}>+ New Section</TButton>}
+        />
+      </Modal>
+    );
+  }
 
   const save = async () => {
     if (!title.trim()) { toast('Title required'); return; }
@@ -265,7 +277,11 @@ export function ContentModalProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={ctx}>
       {children}
-      <QueryModal state={queryState} onClose={() => setQueryState(null)} />
+      <QueryModal
+        state={queryState}
+        onClose={() => setQueryState(null)}
+        onCreateSection={() => setSectionOpen(true)}
+      />
       <SectionModal open={sectionOpen} onClose={() => setSectionOpen(false)} />
       <VersionsModal open={versionsOpen} onClose={() => setVersionsOpen(false)} />
     </Ctx.Provider>
