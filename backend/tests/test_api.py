@@ -192,3 +192,13 @@ def test_notes_reorder_persists_custom_order(client):
     assert client.put("/api/v1/notes/reorder", json={"ids": [b["id"], "00000000-0000-0000-0000-000000000000"]}).json() == {"ok": True}
     titles = [n["title"] for n in client.get("/api/v1/notes", params={"sort": "custom"}).json()]
     assert titles[0] == "B"
+
+
+def test_search_includes_notes(client):
+    client.post("/api/v1/notes", json={"title": "Zebra runbook", "content": "restart the thing"})
+    r = client.get("/api/v1/search", params={"q": "zebra"}).json()
+    assert [n["title"] for n in r["notes"]] == ["Zebra runbook"]
+    r2 = client.get("/api/v1/search", params={"q": "restart the"}).json()
+    assert any(n["title"] == "Zebra runbook" for n in r2["notes"])
+    # notes key always present, even with no matches
+    assert client.get("/api/v1/search", params={"q": "zzz-no-match"}).json()["notes"] == []

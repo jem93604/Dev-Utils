@@ -114,15 +114,17 @@ export function SearchResultsPage({ term }: { term: string }) {
   const { results, searching } = useSearch(term);
   const onPin = usePinToggle();
   const byId = new Map(sections.map((s) => [s.id, s]));
+  const total = results ? results.queries.length + results.notes.length : 0;
+  const noneFound = results && total === 0 && results.sections.length === 0;
   return (
     <div className="sections-wrapper visible">
       <section className="section-block">
         <SectionHeader
           color="var(--amber)" title={`Search: “${term.trim()}”`}
-          badge={results ? `${results.queries.length} quer${results.queries.length === 1 ? 'y' : 'ies'}` : undefined}
+          badge={results ? `${total} match${total === 1 ? '' : 'es'}` : undefined}
         />
         {searching && !results && <div className="empty"><div className="empty-text">Searching…</div></div>}
-        {results && results.queries.length === 0 && results.sections.length === 0 && (
+        {noneFound && (
           <Empty icon="⌕" text="No matches" hint="Try a different term" />
         )}
         {results && results.sections.length > 0 && (
@@ -133,6 +135,23 @@ export function SearchResultsPage({ term }: { term: string }) {
                 <span key={s.id} style={{ marginRight: 8 }}>
                   <NavLink to={`/s/${s.slug}`}>{s.name}</NavLink>
                 </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {results && results.notes.length > 0 && (
+          <div className="purpose-box">
+            <div className="purpose-text">
+              <div className="purpose-title">📝 Matching notes ({results.notes.length})</div>
+              {results.notes.map((n) => (
+                <div key={n.id} style={{ marginBottom: 6 }}>
+                  <NavLink to="/notes" style={{ fontWeight: 700 }}>{n.title}</NavLink>
+                  {n.content && (
+                    <div style={{ fontSize: '.75rem', color: 'var(--text2)', whiteSpace: 'pre-wrap' }}>
+                      {n.content.length > 160 ? n.content.slice(0, 160) + '…' : n.content}
+                    </div>
+                  )}
+                </div>
               ))}
             </div>
           </div>

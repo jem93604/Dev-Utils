@@ -76,6 +76,7 @@ export async function deleteSection(id: string) {
 export interface SearchResults {
   sections: { id: string; name: string; slug: string }[];
   queries: Query[];
+  notes: Note[];
 }
 export async function searchApi(q: string): Promise<SearchResults> {
   const r = await api.get('/search', { params: { q } });

@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import get_current_user_id
-from app.models.entities import Query, Section, SectionInput, Input, Pin
-from app.schemas.content import QueryCreate, QueryUpdate, QueryOut, InputOut
+from app.models.entities import Query, Section, SectionInput, Input, Note, Pin
+from app.schemas.content import QueryCreate, QueryUpdate, QueryOut, InputOut, NoteOut
 from app.services.variables import extract_variables
 
 router = APIRouter(tags=["queries"])
@@ -118,7 +118,12 @@ def search(q: str = QParam(min_length=1), db: Session = Depends(get_db)):
         Query.deleted_at.is_(None),
         (Query.title.ilike(like)) | (Query.purpose.ilike(like)) | (Query.sql_text.ilike(like)),
     ).limit(100).all()
+    notes = db.query(Note).filter(
+        Note.owner_id == uid,
+        (Note.title.ilike(like)) | (Note.content.ilike(like)),
+    ).order_by(Note.updated_at.desc()).limit(50).all()
     return {
         "sections": [{"id": str(s.id), "name": s.name, "slug": s.slug} for s in secs],
         "queries": [_out(db, uid, x) for x in queries],
+        "notes": [NoteOut.model_validate(n).model_dump(mode="json") for n in notes],
     }
