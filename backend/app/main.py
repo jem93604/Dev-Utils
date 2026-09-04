@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -6,7 +7,15 @@ from app.core.database import Base, engine
 import app.models  # noqa: F401  (register models)
 from app.api.v1 import sections, queries, tools
 
-app = FastAPI(title=settings.app_name)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Alembic handles prod migrations; create_all keeps dev/simple deploys working for V1
+    Base.metadata.create_all(bind=engine)
+    yield
+
+
+app = FastAPI(title=settings.app_name, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,9 +33,3 @@ app.include_router(tools.router, prefix="/api/v1")
 @app.get("/health")
 def health():
     return {"ok": True, "auth_enabled": settings.auth_enabled}
-
-
-@app.on_event("startup")
-def _create_tables():
-    # Alembic handles prod migrations; create_all keeps dev/docker simple for V1
-    Base.metadata.create_all(bind=engine)
