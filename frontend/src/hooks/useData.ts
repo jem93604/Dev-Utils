@@ -1,19 +1,35 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   getNotes, getPins, getQueries, getScripts, getSections, getStats,
-  togglePinRemote,
-  type Note, type NoteSort, type Query, type ScriptItem, type Section, type Stats,
+  searchApi, togglePinRemote,
+  type Note, type NoteSort, type Query, type ScriptItem, type Section, type SearchResults, type Stats,
 } from '../lib/api';
 import { toast } from '../components/ui';
 
 const EMPTY_STATS: Stats = { sections: 0, queries: 0, pinned: 0, notes: 0, scripts: 0 };
 const PINS_EVENT = 'sqlhub:pins-changed';
+const CONTENT_EVENT = 'sqlhub:content-changed';
+
+/** Notify every content-aware hook to refetch (after create/update/delete/restore). */
+export function notifyContentChanged() {
+  window.dispatchEvent(new Event(CONTENT_EVENT));
+  window.dispatchEvent(new Event(PINS_EVENT));
+}
+
+function useContentListener(load: () => void): void {
+  useEffect(() => {
+    window.addEventListener(CONTENT_EVENT, load);
+    return () => window.removeEventListener(CONTENT_EVENT, load);
+  }, [load]);
+}
 
 export function useSections() {
   const [data, setData] = useState<Section[]>([]);
-  useEffect(() => {
+  const load = useCallback(() => {
     getSections().then(setData).catch(() => setData([]));
   }, []);
+  useEffect(() => { load(); }, [load]);
+  useContentListener(load);
   return data;
 }
 
@@ -57,9 +73,11 @@ export function useTogglePin() {
 
 export function useStats(): Stats {
   const [data, setData] = useState<Stats>(EMPTY_STATS);
-  useEffect(() => {
+  const load = useCallback(() => {
     getStats().then(setData).catch(() => setData(EMPTY_STATS));
   }, []);
+  useEffect(() => { load(); }, [load]);
+  useContentListener(load);
   return data;
 }
 
@@ -79,4 +97,23 @@ export function useScripts() {
     getScripts().then(setData).catch(() => setData([]));
   }, []);
   return [data, setData] as const;
+}
+
+/** Debounced API search. Returns null results while idle/empty. */
+export function useSearch(term: string, delayMs = 300): { results: SearchResults | null; searching: boolean } {
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const [searching, setSearching] = useState(false);
+  useEffect(() => {
+    const q = term.trim();
+    if (!q) { setResults(null); setSearching(false); return; }
+    setSearching(true);
+    let alive = true;
+    const t = setTimeout(() => {
+      searchApi(q)
+        .then((r) => { if (alive) { setResults(r); setSearching(false); } })
+        .catch(() => { if (alive) { setResults(null); setSearching(false); } });
+    }, delayMs);
+    return () => { alive = false; clearTimeout(t); };
+  }, [term, delayMs]);
+  return { results, searching };
 }

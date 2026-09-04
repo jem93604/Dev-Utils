@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import type { Query, Section } from '../lib/api';
 import { detectTags, renderSql, substitute } from '../lib/sql';
 import { QButton, QTag, toast } from './ui';
+import { confirmDeleteQuery, useContentModals } from './ContentModals';
 
 function InputPanel({
   q, vals, onChange, onClear,
@@ -45,6 +46,7 @@ export function QueryCard({
 }) {
   const [open, setOpen] = useState(false);
   const [vals, setVals] = useState<Record<string, string>>({});
+  const { openEditQuery } = useContentModals();
   const tags = useMemo(() => detectTags(q.sql_text), [q.sql_text]);
   const steps = useMemo(() => q.steps.split('\n').filter(Boolean), [q.steps]);
   const html = useMemo(() => renderSql(q.sql_text, vals), [q.sql_text, vals]);
@@ -71,6 +73,8 @@ export function QueryCard({
         <div className="qcard-actions" onClick={(e) => e.stopPropagation()}>
           <button className={`qbtn-pin${q.pinned ? ' pinned' : ''}`} title={q.pinned ? 'Unpin' : 'Pin to Home'} onClick={() => onTogglePin?.(q)}>📌</button>
           <QButton accent="copy" onClick={copy}>⎘ Copy</QButton>
+          <QButton onClick={() => openEditQuery(q)}>✎ Edit</QButton>
+          <QButton accent="del" onClick={() => confirmDeleteQuery(q)}>× Del</QButton>
         </div>
       </div>
       <div className="qcard-body">

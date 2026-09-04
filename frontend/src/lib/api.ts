@@ -45,6 +45,57 @@ export async function togglePinRemote(queryId: string, pinned: boolean) {
   else await api.put(`/pins/${queryId}`);
 }
 
+/* ---- Queries ---- */
+export interface QueryPayload {
+  section_id: string; title: string;
+  purpose?: string; steps?: string; sql_text: string;
+}
+export async function createQuery(payload: QueryPayload): Promise<Query> {
+  const r = await api.post('/queries', payload);
+  return r.data;
+}
+export async function updateQuery(id: string, payload: Partial<QueryPayload>): Promise<Query> {
+  const r = await api.patch(`/queries/${id}`, payload);
+  return r.data;
+}
+export async function deleteQuery(id: string) {
+  await api.delete(`/queries/${id}`);
+}
+
+/* ---- Sections ---- */
+export interface SectionPayload { name: string; color?: string; description?: string }
+export async function createSection(payload: SectionPayload): Promise<Section> {
+  const r = await api.post('/sections', payload);
+  return r.data;
+}
+export async function deleteSection(id: string) {
+  await api.delete(`/sections/${id}`);
+}
+
+/* ---- Search ---- */
+export interface SearchResults {
+  sections: { id: string; name: string; slug: string }[];
+  queries: Query[];
+}
+export async function searchApi(q: string): Promise<SearchResults> {
+  const r = await api.get('/search', { params: { q } });
+  return r.data;
+}
+
+/* ---- Versions ---- */
+export async function getVersions(): Promise<Version[]> {
+  const r = await api.get('/versions');
+  return r.data;
+}
+export async function createVersion(remark: string): Promise<Version> {
+  const r = await api.post('/versions', { remark });
+  return r.data;
+}
+export async function restoreVersion(id: string) {
+  const r = await api.post(`/versions/${id}/restore`);
+  return r.data;
+}
+
 /* ---- Notes ---- */
 export type NoteSort = 'created' | 'modified' | 'custom';
 

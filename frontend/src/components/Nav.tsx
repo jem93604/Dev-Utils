@@ -5,12 +5,14 @@ import { THEMES } from '../lib/themes';
 import { utilBySlug } from '../lib/utils-registry';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
 
+import { useContentModals } from './ContentModals';
+
 export function Topbar({
-  onSearch, onToggleSidebar, onOpenGuide, theme, onOpenThemes, utilFavs,
+  onSearch, onToggleSidebar, onOpenGuide, theme, onOpenThemes, utilFavs, onOpenVersions,
 }: {
   onSearch: (q: string) => void; onToggleSidebar: () => void;
   onOpenGuide: () => void; theme: string; onOpenThemes: () => void;
-  utilFavs: string[];
+  utilFavs: string[]; onOpenVersions: () => void;
 }) {
   const nav = useNavigate();
   const themeIcon = THEMES.find((t) => t.id === theme)?.icon ?? '🌙';
@@ -32,6 +34,7 @@ export function Topbar({
         </button>
         <button className="tbtn" onClick={() => nav('/')}>🏠 Home</button>
         <button className="tbtn" onClick={onOpenGuide}>📖 Guide</button>
+        <button className="tbtn" onClick={onOpenVersions} title="Snapshots & restore">🕘 Versions</button>
         <button className="tbtn" onClick={() => nav('/utils')} title="All utilities">🧰 Utilities</button>
         {favUtils.map((u) => (
           <button key={u.slug} className="tbtn" onClick={() => nav(u.route)} title={u.title}>{u.icon}</button>
@@ -67,6 +70,7 @@ export function ModuleChips({
 export function Sidebar({
   sections, pins, collapsed,
 }: { sections: Section[]; pins: number; collapsed: boolean }) {
+  const { openCreateSection } = useContentModals();
   if (collapsed) return <aside className="sidebar collapsed" />;
   return (
     <aside className="sidebar">
@@ -85,6 +89,9 @@ export function Sidebar({
             <span className="nav-count">{s.query_count}</span>
           </NavLink>
         ))}
+        <div className="nav-item" style={{ cursor: 'pointer' }} onClick={openCreateSection} title="Create a new section">
+          <span style={{ fontSize: '.9rem' }}>＋</span><span>New Section</span>
+        </div>
       </div>
       <div className="sidebar-divider" />
     </aside>

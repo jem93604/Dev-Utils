@@ -1,14 +1,15 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { HashRouter, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { ModuleChips, Sidebar, Topbar } from './components/Nav';
 import { CommandPalette } from './components/CommandPalette';
+import { ContentModalProvider, useContentModals } from './components/ContentModals';
 import { ThemeModal } from './components/ThemeModal';
 import { GuideModal } from './components/GuideModal';
 import { ToastHost } from './components/ui';
 import { usePins, useSections } from './hooks/useData';
 import { useTheme } from './hooks/useTheme';
 import { useUtilFavs } from './hooks/useUtilFavs';
-import { AllPage, DifferPage, FormatterPage, HomePage, LibraryPage, NotesPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
+import { AllPage, DifferPage, FormatterPage, HomePage, LibraryPage, NotesPage, SearchResultsPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
 import {
   BasePanel, CodecPanel, JwtPanel, RegexPanel, TextPanel,
   TimePanel, JsonPanel, UuidPanel, YamlPanel,
@@ -17,7 +18,9 @@ import {
 export default function App() {
   return (
     <HashRouter>
-      <Shell />
+      <ContentModalProvider>
+        <Shell />
+      </ContentModalProvider>
     </HashRouter>
   );
 }
@@ -43,12 +46,8 @@ function Shell() {
   const [themeOpen, setThemeOpen] = useState(false);
   const { theme, setTheme } = useTheme();
   const { favs, toggle: toggleFav } = useUtilFavs();
-
-  const filtered = useMemo(() => {
-    if (!term.trim()) return sections;
-    const t = term.toLowerCase();
-    return sections.filter((s) => s.name.toLowerCase().includes(t));
-  }, [sections, term]);
+  const { openVersions } = useContentModals();
+  const searching = term.trim().length > 0;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -59,11 +58,15 @@ function Shell() {
         theme={theme}
         onOpenThemes={() => setThemeOpen(true)}
         utilFavs={favs}
+        onOpenVersions={openVersions}
       />
-      <ModuleChips sections={filtered} active={activeFromPath(location.pathname)} />
+      <ModuleChips sections={sections} active={searching ? '' : activeFromPath(location.pathname)} />
       <div className="layout">
-        <Sidebar sections={filtered} pins={pins.length} collapsed={!sideOpen} />
+        <Sidebar sections={sections} pins={pins.length} collapsed={!sideOpen} />
         <main className="main" id="main-content-area">
+          {searching ? (
+            <SearchResultsPage term={term} />
+          ) : (
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/all" element={<AllPage />} />
@@ -83,6 +86,7 @@ function Shell() {
             <Route path="/utils/yaml" element={<UtilPage><YamlPanel /></UtilPage>} />
             <Route path="/utils/text" element={<UtilPage><TextPanel /></UtilPage>} />
           </Routes>
+          )}
         </main>
       </div>
       <ToastHost />

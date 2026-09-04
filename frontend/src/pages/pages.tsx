@@ -1,11 +1,12 @@
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import type { Query, Section } from '../lib/api';
 import { UTILS } from '../lib/utils-registry';
 import { QueryCard } from '../components/QueryCard';
 import { DifferPanel, FormatterPanel, NotesPanel, ScriptPanel } from '../components/Tools';
 import { NotesGrid } from '../components/NotesGrid';
-import { Empty, PurposeBox, SectionHeader, StatCard } from '../components/ui';
-import { usePins, useQueries, useSections, useStats, useTogglePin } from '../hooks/useData';
+import { confirmDeleteSection, useContentModals } from '../components/ContentModals';
+import { Empty, PurposeBox, SectionHeader, StatCard, TButton } from '../components/ui';
+import { usePins, useQueries, useSearch, useSections, useStats, useTogglePin } from '../hooks/useData';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
 
 function usePinToggle() {
@@ -47,17 +48,23 @@ export function SectionPage({ slug }: { slug: string }) {
   const sec = sections.find((s) => s.slug === slug);
   const queries = useQueries(sec?.id);
   const onPin = usePinToggle();
+  const { openCreateQuery } = useContentModals();
+  const nav = useNavigate();
   if (!sec) return <Empty icon="📂" text="Section not found" />;
+  const del = async () => {
+    if (await confirmDeleteSection(sec.id, sec.name, queries.length)) nav('/');
+  };
   return (
     <div className="sections-wrapper visible">
       <section className="section-block">
         <SectionHeader
           color={sec.color} title={sec.name}
           badge={`${queries.length} ${queries.length === 1 ? 'query' : 'queries'}`}
+          right={<><TButton onClick={() => openCreateQuery(sec.id)}>+ Query</TButton><TButton variant="danger" onClick={del}>× Section</TButton></>}
         />
         {sec.description && <PurposeBox title="📂 About this section">{sec.description}</PurposeBox>}
         {queries.length === 0
-          ? <Empty icon="📋" text="No queries yet" />
+          ? <Empty icon="📋" text="No queries yet" hint="Click + Query above to add one" />
           : queries.map((q) => <QueryCard key={q.id} q={q} section={sec} onTogglePin={onPin} />)}
       </section>
     </div>
@@ -87,13 +94,54 @@ function SectionQueries({ sectionId, onPin }: { sectionId: string; onPin: (q: Qu
   const sections = useSections();
   const sec: Section | undefined = sections.find((s) => s.id === sectionId);
   const queries = useQueries(sectionId);
+  const { openCreateQuery } = useContentModals();
   if (!sec) return null;
   return (
     <section className="section-block">
-      <SectionHeader color={sec.color} title={sec.name} badge={`${queries.length} queries`} />
+      <SectionHeader
+        color={sec.color} title={sec.name} badge={`${queries.length} queries`}
+        right={<TButton onClick={() => openCreateQuery(sec.id)}>+ Query</TButton>}
+      />
       {sec.description && <PurposeBox title="📂 About this section">{sec.description}</PurposeBox>}
       {queries.map((q) => <QueryCard key={q.id} q={q} section={sec} onTogglePin={onPin} />)}
     </section>
+  );
+}
+
+/** API-backed search results (replaces client-side section filtering). */
+export function SearchResultsPage({ term }: { term: string }) {
+  const sections = useSections();
+  const { results, searching } = useSearch(term);
+  const onPin = usePinToggle();
+  const byId = new Map(sections.map((s) => [s.id, s]));
+  return (
+    <div className="sections-wrapper visible">
+      <section className="section-block">
+        <SectionHeader
+          color="var(--amber)" title={`Search: “${term.trim()}”`}
+          badge={results ? `${results.queries.length} quer${results.queries.length === 1 ? 'y' : 'ies'}` : undefined}
+        />
+        {searching && !results && <div className="empty"><div className="empty-text">Searching…</div></div>}
+        {results && results.queries.length === 0 && results.sections.length === 0 && (
+          <Empty icon="⌕" text="No matches" hint="Try a different term" />
+        )}
+        {results && results.sections.length > 0 && (
+          <div className="purpose-box">
+            <div className="purpose-text">
+              <div className="purpose-title">Matching sections</div>
+              {results.sections.map((s) => (
+                <span key={s.id} style={{ marginRight: 8 }}>
+                  <NavLink to={`/s/${s.slug}`}>{s.name}</NavLink>
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+        {results?.queries.map((q) => (
+          <QueryCard key={q.id} q={q} section={byId.get(q.section_id)} onTogglePin={onPin} />
+        ))}
+      </section>
+    </div>
   );
 }
 
