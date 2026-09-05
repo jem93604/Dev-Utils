@@ -14,7 +14,8 @@ jobs:
         with:
           python-version: "3.11"
       - working-directory: backend
-        run: uv sync --group dev
+        name: Sync deps (retry)
+        run: for i in 1 2 3; do uv sync --group dev && break || { echo "retry $i"; sleep 10; }; done
       - working-directory: backend
         run: uv run pytest
 
@@ -28,7 +29,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - working-directory: frontend
-        run: npm ci
+        name: Install deps (retry)
+        run: for i in 1 2 3; do npm ci && break || { echo "retry $i"; sleep 10; }; done
       - working-directory: frontend
         run: npm run lint
       - working-directory: frontend
