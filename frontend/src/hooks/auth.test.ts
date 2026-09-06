@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { authErrorMessage, isLockedOut } from '../hooks/useAuth';
+import { authErrorMessage, isLockedOut, isReadOnlyView } from '../hooks/useAuth';
 
 const OFF = { auth_enabled: false, allow_signup: true };
 const ON = { auth_enabled: true, allow_signup: true };
@@ -14,6 +14,18 @@ describe('isLockedOut', () => {
     expect(isLockedOut(ON, USER)).toBe(false);
     expect(isLockedOut(OFF, null)).toBe(false);
     expect(isLockedOut(null, null)).toBe(false);
+  });
+});
+
+describe('isReadOnlyView', () => {
+  it('hides write affordances only for logged-out users when auth is on', () => {
+    expect(isReadOnlyView(false, ON, null)).toBe(true);
+    expect(isReadOnlyView(false, ON, USER)).toBe(false);
+    expect(isReadOnlyView(false, OFF, null)).toBe(false);
+    expect(isReadOnlyView(false, null, null)).toBe(false);
+  });
+  it('never hides while auth state is still loading', () => {
+    expect(isReadOnlyView(true, ON, null)).toBe(false);
   });
 });
 

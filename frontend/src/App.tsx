@@ -11,7 +11,7 @@ import { useTheme } from './hooks/useTheme';
 import { useUtilFavs } from './hooks/useUtilFavs';
 import { AllPage, HomePage, SearchResultsPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
 import { ALL_UTILS } from './lib/utils-registry';
-import { useAuth } from './hooks/useAuth';
+import { isReadOnlyView, useAuth } from './hooks/useAuth';
 import { LoginPage, UsersPage } from './pages/AuthPages';
 
 function LazyUtil({ slug }: { slug: string }) {
@@ -96,7 +96,7 @@ function Shell() {
       />
       <ModuleChips sections={sections} active={searching ? '' : activeFromPath(location.pathname)} />
       <div className="layout">
-        <Sidebar sections={sections} pins={pins.length} collapsed={!sideOpen} />
+        <Sidebar sections={sections} pins={pins.length} collapsed={!sideOpen} readOnly={isReadOnlyView(auth.loading, auth.status, auth.user)} />
         <main className="main" id="main-content-area">
           {locked ? (
             <LoginPage auth={auth} />

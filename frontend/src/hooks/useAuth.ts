@@ -85,6 +85,13 @@ export function isLockedOut(status: AuthStatus | null, user: AuthUser | null): b
   return !!status?.auth_enabled && !user;
 }
 
+/** True when write affordances (e.g. sidebar New Section) must be hidden:
+ *  auth is enabled and no user is signed in. Loading never hides, since the
+ *  shell shows a loading screen until auth state resolves. */
+export function isReadOnlyView(loading: boolean, status: AuthStatus | null, user: AuthUser | null): boolean {
+  return !loading && isLockedOut(status, user);
+}
+
 export function authErrorMessage(e: unknown): string {  const r = (e as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
   if (!r) return 'Backend unreachable';
   const detail = r.data?.detail;

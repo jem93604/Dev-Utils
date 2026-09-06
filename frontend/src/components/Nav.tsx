@@ -93,8 +93,8 @@ export function ModuleChips({
 }
 
 export function Sidebar({
-  sections, pins, collapsed,
-}: { sections: Section[]; pins: number; collapsed: boolean }) {
+  sections, pins, collapsed, readOnly,
+}: { sections: Section[]; pins: number; collapsed: boolean; readOnly?: boolean }) {
   const { openCreateSection } = useContentModals();
   if (collapsed) return <aside className="sidebar collapsed" />;
   return (
@@ -114,9 +114,11 @@ export function Sidebar({
             <span className="nav-count">{s.query_count}</span>
           </NavLink>
         ))}
-        <div className="nav-item" style={{ cursor: 'pointer' }} onClick={openCreateSection} title="Create a new section">
-          <span style={{ fontSize: '.9rem' }}>＋</span><span>New Section</span>
-        </div>
+        {!readOnly && (
+          <div className="nav-item" style={{ cursor: 'pointer' }} onClick={openCreateSection} title="Create a new section">
+            <span style={{ fontSize: '.9rem' }}>＋</span><span>New Section</span>
+          </div>
+        )}
       </div>
       <div className="sidebar-divider" />
     </aside>
