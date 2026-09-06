@@ -17,6 +17,7 @@ import { formatterUtil } from '../utils/formatter';
 import { differUtil } from '../utils/differ';
 import { notesUtil } from '../utils/notes';
 import { libraryUtil } from '../utils/library';
+import { markdownUtil } from '../utils/markdown';
 import { hashUtil } from '../utils/hash';
 import { cronUtil } from '../utils/cron';
 import { urlcodecUtil } from '../utils/urlcodec';
@@ -38,6 +39,7 @@ export const ALL_UTILS: UtilModule[] = [
   differUtil,
   notesUtil,
   libraryUtil,
+  markdownUtil,
   timeUtil,
   jsonUtil,
   codecUtil,
