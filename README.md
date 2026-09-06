@@ -7,9 +7,9 @@ Query library + developer utilities. FastAPI backend (Postgres-ready, SQLite for
 - **Query library** — sections grouping versioned SQL snippets with `{{variable}}` placeholders, live substitution, copy-with-values, pinning to Home, full-text search across titles, purpose, and SQL.
 - **Notes & Snippets** — sticky-note grid on Home and `/notes`, sort by created/modified/custom drag-drop order.
 - **Script Library** — server script paths with purpose + steps.
-- **13 developer utilities** — Data Formatter, SQL Differ, Time Converter, JSON Formatter, Base64/URL Codec, JWT Decoder, UUID Generator, Regex Tester, Base Converter, JSON↔YAML, Text Toolkit (hub at 🧰 Utilities, fuzzy-searchable via `Ctrl+K`).
+- **14 developer utilities** — Data Formatter, SQL Differ, Time Converter, JSON Formatter, Base64 + URL Codec, JWT Decoder, UUID Generator, Regex Tester, Base Converter, JSON↔YAML, Text Toolkit, Hash Generator (hub at 🧰 Utilities, fuzzy-searchable via `Ctrl+K`).
 - **Snapshots** — one-click version snapshots with remark + destructive-restore guard (🕘 Versions).
-- **11 color themes** — picker in the topbar with live preview; add your own in 3 steps (`frontend/THEMES.md`).
+- **20 color themes** — picker in the topbar with live preview; add your own in 3 steps (`frontend/THEMES.md`).
 
 ## Layout
 
@@ -55,7 +55,7 @@ PYTHONPATH=. uv run python scripts/seed_db.py
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./sqlhub.db` | Use `postgresql+psycopg2://user:pass@host:5432/db` for Postgres |
 | `AUTH_ENABLED` | `false` | Single-user mode; JWT auth lands with multi-user |
-| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Add your frontend origin |
+| `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Default does not include 5174 — rely on the vite proxy in dev, or add your frontend origin |
 | `JWT_SECRET` | `change-me-in-prod` | Required when `AUTH_ENABLED=true` |
 
 Never commit `.env` (gitignored). `.env.example` is the template.
@@ -63,8 +63,8 @@ Never commit `.env` (gitignored). `.env.example` is the template.
 ## Test / lint / build
 
 ```sh
-cd backend && uv run pytest          # API tests (SQLite, isolated)
-cd frontend && npm run lint          # oxlint
+cd backend && uv sync --group dev && uv run pytest   # API tests (SQLite, isolated)
+cd frontend && npm ci && npm run lint                # oxlint (first install: npm install locally)
 cd frontend && npm test              # vitest (pure lib functions)
 cd frontend && npm run build         # tsc + vite production build
 ```

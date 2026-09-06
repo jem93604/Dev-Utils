@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { diffLines, formatData } from '../lib/format';
-import { detectTags, extractVariables, substitute } from '../lib/sql';
+import { detectTags, extractVariables, renderSql, substitute } from '../lib/sql';
 import { fuzzy } from '../lib/fuzzy';
 import { UTIL_COMPONENTS, UTIL_META_PATCH, utilBySlug } from '../lib/utils-registry';
 import { timeUtil } from '../utils/time';
@@ -21,6 +21,20 @@ describe('sql helpers', () => {
     expect(detectTags('BEGIN; DELETE FROM t;')).toEqual(['DELETE', 'BEGIN']);
     expect(detectTags('-- comment')).toEqual([]);
   });
+
+  it('escapes HTML in renderSql to prevent injection', () => {
+    const out = renderSql('<script>alert(1)</script> SELECT', {});
+    expect(out).not.toContain('<script>');
+    expect(out).toContain('&lt;script&gt;');
+    expect(out).toContain('<span class="kw">SELECT</span>');
+  });
+
+  it('highlights injected values and unfilled placeholders', () => {
+    const out = renderSql('SELECT {{col}}', { col: 'name' });
+    expect(out).toContain('<span class="var-highlight">name</span>');
+    const unfilled = renderSql('SELECT {{col}}', {});
+    expect(unfilled).toContain('{{col}}');
+  });
 });
 
 describe('formatData', () => {
@@ -35,6 +49,9 @@ describe('formatData', () => {
   });
   it('counts and cases', () => {
     expect(formatData(raw, 'count').output).toBe('Total: 4 items');
+    expect(formatData(raw, 'csv').output).toBe('b,a,b,c');
+    expect(formatData(raw, 'lines').output).toBe('b\na\nb\nc');
+    expect(formatData('  a   b  ', 'trim').output).toBe('a b');
     expect(formatData('aBc', 'upper').output).toBe('ABC');
     expect(formatData('aBc', 'lower').output).toBe('abc');
   });
