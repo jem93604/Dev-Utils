@@ -58,9 +58,15 @@ function Shell() {
   const [guideOpen, setGuideOpen] = useState(false);
   const [themeOpen, setThemeOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const { favs, toggle: toggleFav } = useUtilFavs();
   const { openVersions } = useContentModals();
   const auth = useAuth();
+  // Cross-device prefs sync: logged-in user id, 'local' in single-user
+  // mode, null while logged out (localStorage only until next login).
+  const sync = {
+    userKey: auth.user?.id ?? (!auth.loading && auth.status && !auth.status.auth_enabled ? 'local' : null),
+    canSync: !auth.loading && (!!auth.user || (!!auth.status && !auth.status.auth_enabled)),
+  };
+  const { favs, toggle: toggleFav } = useUtilFavs(sync);
   const searching = term.trim().length > 0;
   // Pure client-side utilities stay usable without login; everything
   // backed by per-user data (queries, notes, scripts, versions) stays locked.
@@ -112,7 +118,7 @@ function Shell() {
             {ALL_UTILS.map((u) => (
               <Route key={u.slug} path={u.route} element={<LazyUtil slug={u.slug} />} />
             ))}
-            <Route path="/utils" element={<UtilsHubPage favs={favs} onToggleFav={toggleFav} />} />
+            <Route path="/utils" element={<UtilsHubPage favs={favs} onToggleFav={toggleFav} sync={sync} />} />
           </Routes>
           )}
         </main>

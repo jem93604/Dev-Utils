@@ -1,33 +1,23 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { utilBySlug } from '../lib/utils-registry';
+import { NO_SYNC, useSyncedStringList, type SyncConfig } from './useSyncedList';
 
 const KEY = 'sqlhub_util_favs';
+const PREF = 'util_favs';
 export const MAX_FAVS = 4;
 
-function load(): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown;
-    if (Array.isArray(raw)) {
-      return raw.filter((s): s is string => typeof s === 'string' && !!utilBySlug(s)).slice(0, 20);
-    }
-  } catch { /* ignore */ }
-  return [];
+function validate(favs: string[]): string[] {
+  return favs.filter((s) => !!utilBySlug(s)).slice(0, 20);
 }
 
-/** User-chosen topbar utility shortcuts. Persisted locally; moves to
- *  backend user-prefs when multi-user lands. */
-export function useUtilFavs() {
-  const [favs, setFavs] = useState<string[]>(load);
+/** User-chosen topbar utility shortcuts. Local-first, synced to user_prefs
+ *  across devices whenever sync applies. */
+export function useUtilFavs(sync: SyncConfig = NO_SYNC) {
+  const { list: favs, update } = useSyncedStringList(KEY, PREF, validate, sync);
 
   const toggle = useCallback((slug: string) => {
-    setFavs((prev) => {
-      const next = prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug];
-      try {
-        localStorage.setItem(KEY, JSON.stringify(next));
-      } catch { /* ignore */ }
-      return next;
-    });
-  }, []);
+    update((prev) => (prev.includes(slug) ? prev.filter((s) => s !== slug) : [...prev, slug]));
+  }, [update]);
 
   return { favs, toggle };
 }

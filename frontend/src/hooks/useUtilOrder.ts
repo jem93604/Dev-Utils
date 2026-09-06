@@ -1,7 +1,9 @@
-import { useCallback, useState } from 'react';
+import { useCallback } from 'react';
 import { arrayMove } from '@dnd-kit/sortable';
+import { NO_SYNC, useSyncedStringList, type SyncConfig } from './useSyncedList';
 
 const KEY = 'sqlhub_util_order';
+const PREF = 'util_order';
 
 /** Merge a stored slug order with the registry: unknown slugs dropped,
  *  newly added utils appended in registry order. Pure (tested). */
@@ -14,37 +16,22 @@ export function orderUtilSlugs(known: string[], stored: string[]): string[] {
   return ordered;
 }
 
-function load(known: string[]): string[] {
-  try {
-    const raw = JSON.parse(localStorage.getItem(KEY) ?? '[]') as unknown;
-    if (Array.isArray(raw)) {
-      return orderUtilSlugs(
-        known,
-        raw.filter((s): s is string => typeof s === 'string'),
-      );
-    }
-  } catch { /* ignore */ }
-  return [...known];
-}
-
-/** Hub card order. Persisted locally; backend user-prefs when multi-user lands. */
-export function useUtilOrder(known: string[]) {
-  const [order, setOrder] = useState<string[]>(() => load(known));
-  const merged = orderUtilSlugs(known, order);
+/** Hub card order. Local-first, synced to user_prefs across devices
+ *  whenever sync applies. */
+export function useUtilOrder(known: string[], sync: SyncConfig = NO_SYNC) {
+  const validate = useCallback((v: string[]) => orderUtilSlugs(known, v), [known]);
+  const { list: stored, update } = useSyncedStringList(KEY, PREF, validate, sync);
+  const order = orderUtilSlugs(known, stored);
 
   const move = useCallback((activeId: string, overId: string) => {
-    setOrder((prev) => {
+    update((prev) => {
       const cur = orderUtilSlugs(known, prev);
       const from = cur.indexOf(activeId);
       const to = cur.indexOf(overId);
       if (from < 0 || to < 0 || from === to) return prev;
-      const next = arrayMove(cur, from, to);
-      try {
-        localStorage.setItem(KEY, JSON.stringify(next));
-      } catch { /* ignore */ }
-      return next;
+      return arrayMove(cur, from, to);
     });
-  }, [known]);
+  }, [known, update]);
 
-  return { order: merged, move };
+  return { order, move };
 }

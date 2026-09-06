@@ -200,6 +200,16 @@ export async function reorderNotes(ids: string[]) {
   return r.data;
 }
 
+/* ---- User prefs (per-user, synced across devices) ---- */
+export async function getPrefs(): Promise<Record<string, string[]>> {
+  const r = await api.get('/prefs');
+  return (r.data?.prefs ?? {}) as Record<string, string[]>;
+}
+
+export async function setPref(key: string, value: string[]) {
+  await api.put(`/prefs/${key}`, { value });
+}
+
 /* ---- Scripts ---- */
 export type ScriptPayload = Omit<ScriptItem, 'id'>;
 export async function getScripts(): Promise<ScriptItem[]> {

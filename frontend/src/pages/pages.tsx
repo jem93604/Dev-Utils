@@ -11,6 +11,7 @@ import { Empty, PurposeBox, SectionHeader, StatCard, TButton } from '../componen
 import { usePins, useQueries, useSearch, useSections, useStats, useTogglePin } from '../hooks/useData';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
 import { useUtilOrder } from '../hooks/useUtilOrder';
+import { NO_SYNC, type SyncConfig } from '../hooks/useSyncedList';
 
 function usePinToggle() {
   return useTogglePin();
@@ -226,8 +227,8 @@ function HubCard({ slug, isFav, onToggleFav }: { slug: string; isFav: boolean; o
   );
 }
 
-/* ---------- Utilities hub ---------- */export function UtilsHubPage({ favs, onToggleFav }: { favs: string[]; onToggleFav: (slug: string) => void }) {
-  const { order, move } = useUtilOrder(UTILS.map((u) => u.slug));
+/* ---------- Utilities hub ---------- */export function UtilsHubPage({ favs, onToggleFav, sync = NO_SYNC }: { favs: string[]; onToggleFav: (slug: string) => void; sync?: SyncConfig }) {
+  const { order, move } = useUtilOrder(UTILS.map((u) => u.slug), sync);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
 
   const onDragEnd = (e: DragEndEvent) => {
