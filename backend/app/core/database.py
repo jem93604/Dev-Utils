@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
 from app.core.config import settings
@@ -8,10 +8,24 @@ class Base(DeclarativeBase):
     pass
 
 
+def enforce_sqlite_fk(engine) -> None:
+    """SQLite declares FKs (incl. ON DELETE CASCADE) but enforces nothing
+    unless PRAGMA foreign_keys=ON is set per connection. Without this,
+    hard-deletes silently leave orphan rows (prod Postgres enforces always)."""
+
+    @event.listens_for(engine, "connect")
+    def _set_sqlite_pragma(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+
 engine_kwargs: dict = {"pool_pre_ping": True}
 if settings.database_url.startswith("sqlite"):
     engine_kwargs = {"connect_args": {"check_same_thread": False}}
 engine = create_engine(settings.database_url, **engine_kwargs)
+if settings.database_url.startswith("sqlite"):
+    enforce_sqlite_fk(engine)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
 
 
