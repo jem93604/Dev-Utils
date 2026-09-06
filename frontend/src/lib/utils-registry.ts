@@ -20,6 +20,10 @@ import { libraryUtil } from '../utils/library';
 import { hashUtil } from '../utils/hash';
 import { cronUtil } from '../utils/cron';
 import { urlcodecUtil } from '../utils/urlcodec';
+import { sqlformatUtil } from '../utils/sqlformat';
+import { mockrowsUtil } from '../utils/mockrows';
+import { wherebuilderUtil } from '../utils/wherebuilder';
+import { connstrUtil } from '../utils/connstr';
 
 export interface UtilDef {
   slug: string;
@@ -46,6 +50,10 @@ export const ALL_UTILS: UtilModule[] = [
   hashUtil,
   cronUtil,
   urlcodecUtil,
+  sqlformatUtil,
+  mockrowsUtil,
+  wherebuilderUtil,
+  connstrUtil,
 ];
 
 export const UTILS: UtilDef[] = ALL_UTILS.map((u) => ({
