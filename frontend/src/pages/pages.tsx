@@ -1,12 +1,16 @@
 import { NavLink, useNavigate } from 'react-router-dom';
+import { DndContext, PointerSensor, closestCenter, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, rectSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { Query, Section } from '../lib/api';
-import { UTILS } from '../lib/utils-registry';
+import { UTILS, utilBySlug } from '../lib/utils-registry';
 import { QueryCard } from '../components/QueryCard';
 import { NotesGrid } from '../components/NotesGrid';
 import { confirmDeleteSection, useContentModals } from '../components/ContentModals';
 import { Empty, PurposeBox, SectionHeader, StatCard, TButton } from '../components/ui';
 import { usePins, useQueries, useSearch, useSections, useStats, useTogglePin } from '../hooks/useData';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
+import { useUtilOrder } from '../hooks/useUtilOrder';
 
 function usePinToggle() {
   return useTogglePin();
@@ -187,34 +191,65 @@ export function UtilPage({ children }: { children: React.ReactNode }) {
   return <div className="sections-wrapper visible">{children}</div>;
 }
 
+function HubCard({ slug, isFav, onToggleFav }: { slug: string; isFav: boolean; onToggleFav: (slug: string) => void }) {
+  const u = utilBySlug(slug);
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: slug });
+  if (!u) return null;
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 9, padding: '14px 15px', position: 'relative',
+        transform: CSS.Translate.toString(transform), transition, opacity: isDragging ? 0.35 : undefined,
+      }}
+    >
+      <button
+        onClick={() => onToggleFav(u.slug)} title={isFav ? 'Remove from topbar' : 'Pin to topbar'}
+        style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: isFav ? 'var(--amber)' : 'var(--text3)' }}
+      >
+        {isFav ? '★' : '☆'}
+      </button>
+      <span
+        {...attributes}
+        {...listeners}
+        title="Drag to reorder"
+        style={{ position: 'absolute', bottom: 8, right: 10, cursor: 'grab', color: 'var(--text3)', touchAction: 'none', fontSize: '.8rem' }}
+      >
+        ⋮⋮
+      </span>
+      <NavLink to={u.route} style={{ textDecoration: 'none' }}>
+        <div style={{ fontSize: '1.4rem', marginBottom: 6 }}>{u.icon}</div>
+        <div style={{ fontWeight: 700, fontSize: '.85rem', color: 'var(--text)', marginBottom: 3 }}>{u.title}</div>
+        <div style={{ fontSize: '.73rem', color: 'var(--text2)', lineHeight: 1.5 }}>{u.description}</div>
+      </NavLink>
+    </div>
+  );
+}
+
 /* ---------- Utilities hub ---------- */export function UtilsHubPage({ favs, onToggleFav }: { favs: string[]; onToggleFav: (slug: string) => void }) {
+  const { order, move } = useUtilOrder(UTILS.map((u) => u.slug));
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
+
+  const onDragEnd = (e: DragEndEvent) => {
+    if (e.over && e.active.id !== e.over.id) move(String(e.active.id), String(e.over.id));
+  };
+
   return (
     <div className="sections-wrapper visible">
       <section className="section-block">
         <SectionHeader color="var(--amber)" title="🧰 Utilities" badge={`${UTILS.length} tools`} />
         <PurposeBox title="Favorites">
-          Click ☆ on any card to pin it to the topbar (first {MAX_FAVS} show). Press <code style={{ color: 'var(--amber)' }}>Ctrl+K</code> anywhere to fuzzy-search all utilities.
+          Click ☆ on any card to pin it to the topbar (first {MAX_FAVS} show). Drag ⋮⋮ to reorder cards. Press <code style={{ color: 'var(--amber)' }}>Ctrl+K</code> anywhere to fuzzy-search all utilities.
         </PurposeBox>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
-          {UTILS.map((u) => {
-            const isFav = favs.includes(u.slug);
-            return (
-              <div key={u.slug} style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 9, padding: '14px 15px', position: 'relative' }}>
-                <button
-                  onClick={() => onToggleFav(u.slug)} title={isFav ? 'Remove from topbar' : 'Pin to topbar'}
-                  style={{ position: 'absolute', top: 8, right: 10, background: 'none', border: 'none', cursor: 'pointer', fontSize: '1rem', color: isFav ? 'var(--amber)' : 'var(--text3)' }}
-                >
-                  {isFav ? '★' : '☆'}
-                </button>
-                <NavLink to={u.route} style={{ textDecoration: 'none' }}>
-                  <div style={{ fontSize: '1.4rem', marginBottom: 6 }}>{u.icon}</div>
-                  <div style={{ fontWeight: 700, fontSize: '.85rem', color: 'var(--text)', marginBottom: 3 }}>{u.title}</div>
-                  <div style={{ fontSize: '.73rem', color: 'var(--text2)', lineHeight: 1.5 }}>{u.description}</div>
-                </NavLink>
-              </div>
-            );
-          })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={order} strategy={rectSortingStrategy}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(220px,1fr))', gap: 10 }}>
+              {order.map((slug) => (
+                <HubCard key={slug} slug={slug} isFav={favs.includes(slug)} onToggleFav={onToggleFav} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       </section>
     </div>
   );
