@@ -1,18 +1,74 @@
 import uuid
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.core.database import get_db
+from app.core.security import decode_token_sub
 from app.models.entities import User
 
+bearer_scheme = HTTPBearer(auto_error=False)
 
-def get_current_user_id(db: Session) -> uuid.UUID:
-    """V1 single-user mode: return seeded default user. Later: parse JWT."""
+
+def _default_user(db: Session) -> User:
+    user = db.query(User).filter(User.email == settings.default_user_email).first()
+    if user:
+        return user
+    user = User(email=settings.default_user_email, display_name="Local User")
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def get_current_user(
+    db: Session = Depends(get_db),
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> User:
+    """Single-user mode (AUTH_ENABLED=false) returns the seeded default user.
+    Otherwise validates the Bearer JWT and returns the active user."""
     if not settings.auth_enabled:
-        user = db.query(User).filter(User.email == settings.default_user_email).first()
-        if user:
-            return user.id
-        user = User(email=settings.default_user_email, display_name="Local User")
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return user.id
-    raise NotImplementedError("JWT auth not enabled yet (Phase: multi-user)")
+        return _default_user(db)
+    if not creds or creds.scheme.lower() != "bearer":
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Not authenticated")
+    sub = decode_token_sub(creds.credentials, settings.jwt_secret, settings.jwt_algorithm)
+    if not sub:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid or expired token")
+    try:
+        uid = uuid.UUID(sub)
+    except ValueError:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid token subject")
+    user = db.get(User, uid)
+    if not user or not user.is_active:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Account inactive or deleted")
+    return user
+
+
+def get_current_user_id(
+    db: Session = Depends(get_db),
+    creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+) -> uuid.UUID:
+    """Auth-aware user resolution used by every router. Single-user mode
+    (AUTH_ENABLED=false) returns the seeded default user; otherwise the id
+    comes from the validated Bearer JWT."""
+    return get_current_user(db, creds).id
+
+
+def require_admin(user: User = Depends(get_current_user)) -> User:
+    if not user.is_admin:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
+    return user
+
+
+def owned(db: Session, model, obj_id: uuid.UUID, uid: uuid.UUID, name: str = "Item"):
+    """Fetch a row by id, raising 404 unless it exists, is not soft-deleted,
+    and belongs to the current user. Works for owner_id and user_id FKs."""
+    obj = db.get(model, obj_id)
+    owner = getattr(obj, "owner_id", getattr(obj, "user_id", None))
+    if not obj or (owner is not None and owner != uid):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{name} not found")
+    if getattr(obj, "deleted_at", None):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{name} not found")
+    return obj

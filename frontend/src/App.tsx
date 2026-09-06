@@ -11,6 +11,8 @@ import { useTheme } from './hooks/useTheme';
 import { useUtilFavs } from './hooks/useUtilFavs';
 import { AllPage, HomePage, SearchResultsPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
 import { ALL_UTILS } from './lib/utils-registry';
+import { useAuth } from './hooks/useAuth';
+import { LoginPage, UsersPage } from './pages/AuthPages';
 
 function LazyUtil({ slug }: { slug: string }) {
   const mod = ALL_UTILS.find((u) => u.slug === slug);
@@ -24,6 +26,7 @@ function LazyUtil({ slug }: { slug: string }) {
     </UtilPage>
   );
 }
+
 
 export default function App() {
   return (
@@ -57,7 +60,24 @@ function Shell() {
   const { theme, setTheme } = useTheme();
   const { favs, toggle: toggleFav } = useUtilFavs();
   const { openVersions } = useContentModals();
+  const auth = useAuth();
   const searching = term.trim().length > 0;
+  // Pure client-side utilities stay usable without login; everything
+  // backed by per-user data (queries, notes, scripts, versions) stays locked.
+  const PUBLIC_PATHS = ['/login', '/formatter', '/differ', '/utils'];
+  const isPublicPath = (path: string) =>
+    PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'));
+  const locked = !auth.loading && !!auth.status?.auth_enabled && !auth.user
+    && !isPublicPath(location.pathname);
+
+  if (auth.loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className="empty" style={{ margin: 'auto' }}><div className="empty-text">Loading…</div></div>
+        <ToastHost />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -69,18 +89,26 @@ function Shell() {
         onOpenThemes={() => setThemeOpen(true)}
         utilFavs={favs}
         onOpenVersions={openVersions}
+        authUser={auth.user}
+        authEnabled={!!auth.status?.auth_enabled}
+        isAdmin={!!auth.user?.is_admin}
+        onLogout={auth.logout}
       />
       <ModuleChips sections={sections} active={searching ? '' : activeFromPath(location.pathname)} />
       <div className="layout">
         <Sidebar sections={sections} pins={pins.length} collapsed={!sideOpen} />
         <main className="main" id="main-content-area">
-          {searching ? (
+          {locked ? (
+            <LoginPage auth={auth} />
+          ) : searching ? (
             <SearchResultsPage term={term} />
           ) : (
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/all" element={<AllPage />} />
             <Route path="/s/:slug" element={<SectionRoute />} />
+            <Route path="/login" element={<LoginPage auth={auth} />} />
+            <Route path="/users" element={<UsersPage auth={auth} />} />
             {ALL_UTILS.map((u) => (
               <Route key={u.slug} path={u.route} element={<LazyUtil slug={u.slug} />} />
             ))}

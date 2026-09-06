@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user_id
+from app.core.deps import get_current_user_id, owned
 from app.models.entities import Pin, Query
 from app.schemas.content import (
     NoteCreate, NoteOut, ReorderNotes, ScriptCreate, ScriptOut, VersionCreate, VersionOut,
@@ -15,9 +15,8 @@ router = APIRouter(tags=["tools"])
 
 # ---- Pins ----
 @router.get("/pins")
-def list_pins(db: Session = Depends(get_db)):
+def list_pins(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     from app.api.v1.queries import _out
-    uid = get_current_user_id(db)
     pins = db.query(Pin).filter_by(user_id=uid).all()
     out = []
     for p in pins:
@@ -28,8 +27,8 @@ def list_pins(db: Session = Depends(get_db)):
 
 
 @router.put("/pins/{query_id}")
-def pin(query_id: uuid.UUID, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def pin(query_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    owned(db, Query, query_id, uid, "Query")
     if not db.query(Pin).filter_by(user_id=uid, query_id=query_id).first():
         db.add(Pin(user_id=uid, query_id=query_id))
         db.commit()
@@ -37,8 +36,7 @@ def pin(query_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.delete("/pins/{query_id}")
-def unpin(query_id: uuid.UUID, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def unpin(query_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     db.query(Pin).filter_by(user_id=uid, query_id=query_id).delete()
     db.commit()
     return {"ok": True, "pinned": False}
@@ -46,9 +44,8 @@ def unpin(query_id: uuid.UUID, db: Session = Depends(get_db)):
 
 # ---- Notes ----
 @router.get("/notes", response_model=list[NoteOut])
-def list_notes(sort: str = "created", db: Session = Depends(get_db)):
+def list_notes(sort: str = "created", db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     from fastapi import HTTPException
-    uid = get_current_user_id(db)
     q = db.query(Note).filter_by(owner_id=uid)
     if sort == "created":
         return q.order_by(Note.created_at.desc(), Note.sort_order.asc()).all()
@@ -60,9 +57,8 @@ def list_notes(sort: str = "created", db: Session = Depends(get_db)):
 
 
 @router.post("/notes", response_model=NoteOut)
-def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
+def create_note(payload: NoteCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     from sqlalchemy import func
-    uid = get_current_user_id(db)
     lowest = db.query(func.min(Note.sort_order)).filter_by(owner_id=uid).scalar()
     first = (lowest - 1) if lowest is not None else 0
     n = Note(owner_id=uid, title=payload.title.strip(), content=payload.content, sort_order=first)
@@ -73,8 +69,7 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/notes/reorder")
-def reorder_notes(payload: ReorderNotes, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def reorder_notes(payload: ReorderNotes, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     by_id = {n.id: n for n in db.query(Note).filter_by(owner_id=uid).all()}
     for i, nid in enumerate(payload.ids):
         if nid in by_id:
@@ -84,11 +79,8 @@ def reorder_notes(payload: ReorderNotes, db: Session = Depends(get_db)):
 
 
 @router.patch("/notes/{note_id}", response_model=NoteOut)
-def update_note(note_id: uuid.UUID, payload: NoteCreate, db: Session = Depends(get_db)):
-    from fastapi import HTTPException
-    n = db.get(Note, note_id)
-    if not n:
-        raise HTTPException(404, "Note not found")
+def update_note(note_id: uuid.UUID, payload: NoteCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    n = owned(db, Note, note_id, uid, "Note")
     n.title, n.content = payload.title.strip(), payload.content
     db.commit()
     db.refresh(n)
@@ -96,24 +88,21 @@ def update_note(note_id: uuid.UUID, payload: NoteCreate, db: Session = Depends(g
 
 
 @router.delete("/notes/{note_id}")
-def delete_note(note_id: uuid.UUID, db: Session = Depends(get_db)):
-    n = db.get(Note, note_id)
-    if n:
-        db.delete(n)
-        db.commit()
+def delete_note(note_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    n = owned(db, Note, note_id, uid, "Note")
+    db.delete(n)
+    db.commit()
     return {"ok": True}
 
 
 # ---- Scripts ----
 @router.get("/scripts", response_model=list[ScriptOut])
-def list_scripts(db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def list_scripts(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     return db.query(Script).filter_by(owner_id=uid).order_by(Script.file_name).all()
 
 
 @router.post("/scripts", response_model=ScriptOut)
-def create_script(payload: ScriptCreate, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def create_script(payload: ScriptCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     s = Script(owner_id=uid, **payload.model_dump())
     db.add(s)
     db.commit()
@@ -122,11 +111,8 @@ def create_script(payload: ScriptCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/scripts/{script_id}", response_model=ScriptOut)
-def update_script(script_id: uuid.UUID, payload: ScriptCreate, db: Session = Depends(get_db)):
-    from fastapi import HTTPException
-    s = db.get(Script, script_id)
-    if not s:
-        raise HTTPException(404, "Script not found")
+def update_script(script_id: uuid.UUID, payload: ScriptCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    s = owned(db, Script, script_id, uid, "Script")
     for k, v in payload.model_dump().items():
         setattr(s, k, v)
     db.commit()
@@ -135,17 +121,16 @@ def update_script(script_id: uuid.UUID, payload: ScriptCreate, db: Session = Dep
 
 
 @router.delete("/scripts/{script_id}")
-def delete_script(script_id: uuid.UUID, db: Session = Depends(get_db)):
-    s = db.get(Script, script_id)
-    if s:
-        db.delete(s)
-        db.commit()
+def delete_script(script_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    s = owned(db, Script, script_id, uid, "Script")
+    db.delete(s)
+    db.commit()
     return {"ok": True}
 
 
 # ---- Versions ----
 def _snapshot(db: Session, uid: str) -> dict:
-    secs = db.query(Section).filter(Section.deleted_at.is_(None)).all()
+    secs = db.query(Section).filter(Section.owner_id == uid, Section.deleted_at.is_(None)).all()
     out_secs = []
     for s in secs:
         keys = [r[0] for r in db.query(SectionInput.input_key).filter_by(section_id=s.id).all()]
@@ -165,14 +150,12 @@ def _snapshot(db: Session, uid: str) -> dict:
 
 
 @router.get("/versions", response_model=list[VersionOut])
-def list_versions(db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def list_versions(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     return db.query(Version).filter_by(owner_id=uid).order_by(Version.created_at.desc()).limit(50).all()
 
 
 @router.post("/versions", response_model=VersionOut)
-def create_version(payload: VersionCreate, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def create_version(payload: VersionCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     v = Version(owner_id=uid, remark=payload.remark or "Snapshot", snapshot=_snapshot(db, uid))
     db.add(v)
     db.commit()
@@ -181,12 +164,8 @@ def create_version(payload: VersionCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/versions/{version_id}/restore")
-def restore_version(version_id: uuid.UUID, db: Session = Depends(get_db)):
-    from fastapi import HTTPException
-    uid = get_current_user_id(db)
-    v = db.get(Version, version_id)
-    if not v:
-        raise HTTPException(404, "Version not found")
+def restore_version(version_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    v = owned(db, Version, version_id, uid, "Version")
     # Full restore is destructive; implement as snapshot re-import (Phase 1 minimal):
     # delete current content for user, re-create from snapshot ids are regenerated.
     from app.services.variables import slugify
@@ -216,17 +195,15 @@ def restore_version(version_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/export")
-def export_all(db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def export_all(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     return _snapshot(db, uid)
 
 
 @router.get("/stats")
-def stats(db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def stats(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     return {
-        "sections": db.query(Section).filter(Section.deleted_at.is_(None)).count(),
-        "queries": db.query(Query).filter(Query.deleted_at.is_(None)).count(),
+        "sections": db.query(Section).filter(Section.owner_id == uid, Section.deleted_at.is_(None)).count(),
+        "queries": db.query(Query).filter(Query.owner_id == uid, Query.deleted_at.is_(None)).count(),
         "pinned": db.query(Pin).filter_by(user_id=uid).count(),
         "notes": db.query(Note).filter_by(owner_id=uid).count(),
         "scripts": db.query(Script).filter_by(owner_id=uid).count(),

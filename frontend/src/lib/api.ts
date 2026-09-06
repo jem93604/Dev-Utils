@@ -2,6 +2,46 @@ import axios from 'axios';
 
 export const api = axios.create({ baseURL: '/api/v1' });
 
+/* ---- Auth token store (localStorage; moves to httpOnly cookies if XSS becomes a concern) ---- */
+const TOKEN_KEY = 'sqlhub_token';
+
+export function getToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setToken(token: string | null) {
+  try {
+    if (token) localStorage.setItem(TOKEN_KEY, token);
+    else localStorage.removeItem(TOKEN_KEY);
+  } catch { /* ignore */ }
+}
+
+api.interceptors.request.use((config) => {
+  const token = getToken();
+  if (token) {
+    config.headers = config.headers ?? {};
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (r) => r,
+  (err) => {
+    // Expired/revoked credentials: drop the token and bounce to login.
+    // Guard the login page itself to avoid a redirect loop.
+    if (err?.response?.status === 401 && getToken() && !window.location.hash.startsWith('#/login')) {
+      setToken(null);
+      window.location.hash = '#/login';
+    }
+    return Promise.reject(err);
+  },
+);
+
 export interface Section {
   id: string; name: string; slug: string; color: string;
   description: string; inputs: string[]; query_count: number;
@@ -94,6 +134,46 @@ export async function createVersion(remark: string): Promise<Version> {
 }
 export async function restoreVersion(id: string) {
   const r = await api.post(`/versions/${id}/restore`);
+  return r.data;
+}
+
+/* ---- Auth ---- */
+export interface AuthUser {
+  id: string; email: string; display_name: string;
+  is_active: boolean; is_admin: boolean; created_at?: string;
+}
+
+export interface AuthStatus {
+  auth_enabled: boolean; allow_signup: boolean;
+}
+
+export async function getAuthStatus(): Promise<AuthStatus> {
+  const r = await api.get('/auth/status');
+  return r.data;
+}
+
+export async function register(payload: { email: string; password: string; display_name?: string }): Promise<{ access_token: string; user: AuthUser }> {
+  const r = await api.post('/auth/register', payload);
+  return r.data;
+}
+
+export async function login(payload: { email: string; password: string }): Promise<{ access_token: string; user: AuthUser }> {
+  const r = await api.post('/auth/login', payload);
+  return r.data;
+}
+
+export async function fetchMe(): Promise<AuthUser> {
+  const r = await api.get('/auth/me');
+  return r.data;
+}
+
+export async function listUsers(): Promise<AuthUser[]> {
+  const r = await api.get('/auth/users');
+  return r.data;
+}
+
+export async function updateUser(id: string, payload: { is_active?: boolean; display_name?: string }): Promise<AuthUser> {
+  const r = await api.patch(`/auth/users/${id}`, payload);
   return r.data;
 }
 
