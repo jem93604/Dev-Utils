@@ -2,7 +2,6 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import type { Query, Section } from '../lib/api';
 import { UTILS } from '../lib/utils-registry';
 import { QueryCard } from '../components/QueryCard';
-import { DifferPanel, FormatterPanel, NotesPanel, ScriptPanel } from '../components/Tools';
 import { NotesGrid } from '../components/NotesGrid';
 import { confirmDeleteSection, useContentModals } from '../components/ContentModals';
 import { Empty, PurposeBox, SectionHeader, StatCard, TButton } from '../components/ui';
@@ -178,40 +177,6 @@ export function SearchResultsPage({ term }: { term: string }) {
           <QueryCard key={q.id} q={q} section={byId.get(q.section_id)} onTogglePin={onPin} />
         ))}
       </section>
-    </div>
-  );
-}
-
-/* ---------- Standalone utility pages ---------- */
-
-export function FormatterPage() {
-  return (
-    <div className="sections-wrapper visible">
-      <FormatterPanel />
-    </div>
-  );
-}
-
-export function DifferPage() {
-  return (
-    <div className="sections-wrapper visible">
-      <DifferPanel />
-    </div>
-  );
-}
-
-export function NotesPage() {
-  return (
-    <div className="sections-wrapper visible">
-      <NotesPanel />
-    </div>
-  );
-}
-
-export function LibraryPage() {
-  return (
-    <div className="sections-wrapper visible">
-      <ScriptPanel />
     </div>
   );
 }

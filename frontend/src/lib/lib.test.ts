@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { diffLines, formatData } from '../lib/format';
 import { detectTags, extractVariables, substitute } from '../lib/sql';
 import { fuzzy } from '../lib/fuzzy';
+import { UTIL_COMPONENTS, UTIL_META_PATCH, utilBySlug } from '../lib/utils-registry';
+import { timeUtil } from '../utils/time';
 
 describe('sql helpers', () => {
   it('extracts {{variables}} in order, deduplicated', () => {
@@ -61,5 +63,18 @@ describe('fuzzy', () => {
   });
   it('returns empty on no match', () => {
     expect(fuzzy('zzz', items, key)).toEqual([]);
+  });
+});
+
+describe('pluggable utils pilot (time)', () => {
+  it('registry metadata stays in sync with the time module', () => {
+    expect(utilBySlug('time')?.route).toBe('/utils/time');
+    expect(timeUtil.slug).toBe('time');
+    expect(timeUtil.route).toBe('/utils/time');
+  });
+  it('exposes a lazy component and category metadata', () => {
+    expect(UTIL_COMPONENTS.time).toBe(timeUtil.component);
+    expect(UTIL_META_PATCH.time.category).toBe('time');
+    expect(UTIL_META_PATCH.time.keywords.length).toBeGreaterThan(0);
   });
 });

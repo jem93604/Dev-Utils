@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { HashRouter, Route, Routes, useLocation, useParams } from 'react-router-dom';
 import { ModuleChips, Sidebar, Topbar } from './components/Nav';
 import { CommandPalette } from './components/CommandPalette';
@@ -9,11 +9,21 @@ import { ToastHost } from './components/ui';
 import { usePins, useSections } from './hooks/useData';
 import { useTheme } from './hooks/useTheme';
 import { useUtilFavs } from './hooks/useUtilFavs';
-import { AllPage, DifferPage, FormatterPage, HomePage, LibraryPage, NotesPage, SearchResultsPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
-import {
-  BasePanel, CodecPanel, JwtPanel, RegexPanel, TextPanel,
-  TimePanel, JsonPanel, UuidPanel, YamlPanel,
-} from './components/DevTools';
+import { AllPage, HomePage, SearchResultsPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
+import { ALL_UTILS } from './lib/utils-registry';
+
+function LazyUtil({ slug }: { slug: string }) {
+  const mod = ALL_UTILS.find((u) => u.slug === slug);
+  if (!mod) return null;
+  const C = mod.component;
+  return (
+    <UtilPage>
+      <Suspense fallback={<div className="empty"><div className="empty-text">Loading…</div></div>}>
+        <C />
+      </Suspense>
+    </UtilPage>
+  );
+}
 
 export default function App() {
   return (
@@ -71,20 +81,10 @@ function Shell() {
             <Route path="/" element={<HomePage />} />
             <Route path="/all" element={<AllPage />} />
             <Route path="/s/:slug" element={<SectionRoute />} />
-            <Route path="/formatter" element={<FormatterPage />} />
-            <Route path="/differ" element={<DifferPage />} />
-            <Route path="/notes" element={<NotesPage />} />
-            <Route path="/library" element={<LibraryPage />} />
+            {ALL_UTILS.map((u) => (
+              <Route key={u.slug} path={u.route} element={<LazyUtil slug={u.slug} />} />
+            ))}
             <Route path="/utils" element={<UtilsHubPage favs={favs} onToggleFav={toggleFav} />} />
-            <Route path="/utils/time" element={<UtilPage><TimePanel /></UtilPage>} />
-            <Route path="/utils/json" element={<UtilPage><JsonPanel /></UtilPage>} />
-            <Route path="/utils/codec" element={<UtilPage><CodecPanel /></UtilPage>} />
-            <Route path="/utils/jwt" element={<UtilPage><JwtPanel /></UtilPage>} />
-            <Route path="/utils/uuid" element={<UtilPage><UuidPanel /></UtilPage>} />
-            <Route path="/utils/regex" element={<UtilPage><RegexPanel /></UtilPage>} />
-            <Route path="/utils/base" element={<UtilPage><BasePanel /></UtilPage>} />
-            <Route path="/utils/yaml" element={<UtilPage><YamlPanel /></UtilPage>} />
-            <Route path="/utils/text" element={<UtilPage><TextPanel /></UtilPage>} />
           </Routes>
           )}
         </main>
