@@ -24,6 +24,15 @@ export const THEMES: ThemeDef[] = [
   { id: 'solarized-dark', name: 'Solarized Dark', icon: '🌊' },
   { id: 'solarized-light', name: 'Solarized Light', icon: '☀️' },
   { id: 'gray-light', name: 'Soft Gray', icon: '🌤️' },
+  { id: 'vantablack', name: 'Vantablack', icon: '⚫' },
+  { id: 'github-dark', name: 'GitHub Dark', icon: '🐙' },
+  { id: 'everforest', name: 'Everforest', icon: '🌲' },
+  { id: 'rose-pine', name: 'Rosé Pine', icon: '🌹' },
+  { id: 'cyberpunk', name: 'Cyberpunk Neon', icon: '🌆' },
+  { id: 'high-contrast', name: 'High Contrast', icon: '🔆' },
+  { id: 'midnight', name: 'Midnight Blue', icon: '🌌' },
+  { id: 'oled', name: 'Pure OLED', icon: '📱' },
+  { id: 'pastel-dark', name: 'Pastel Dark', icon: '🍬' },
 ];
 
 export const DEFAULT_THEME = 'dark';
