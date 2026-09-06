@@ -54,9 +54,19 @@ PYTHONPATH=. uv run python scripts/seed_db.py
 | Key | Default | Notes |
 |---|---|---|
 | `DATABASE_URL` | `sqlite:///./sqlhub.db` | Use `postgresql+psycopg2://user:pass@host:5432/db` for Postgres |
-| `AUTH_ENABLED` | `false` | Single-user mode; JWT auth lands with multi-user |
+| `AUTH_ENABLED` | `true` | Email+password login; set `false` for legacy single-user mode |
+| `ALLOW_SIGNUP` | `true` | Open registration; set `false` to close it after onboarding |
+| `JWT_EXPIRE_DAYS` | `7` | Bearer token lifetime |
 | `CORS_ORIGINS` | `http://localhost:5173,http://localhost:3000` | Add your frontend origin |
-| `JWT_SECRET` | `change-me-in-prod` | Required when `AUTH_ENABLED=true` |
+| `JWT_SECRET` | `change-me-in-prod` | Signs login tokens — set a long random value in prod |
+
+## Accounts & access control
+
+- **Private workspaces** — every account sees only its own queries, notes, scripts, and snapshots.
+- **First account becomes admin** — register in the UI, or headless: `PYTHONPATH=. uv run python scripts/create_admin.py --email you@team.com --password '...'`. The first admin inherits any legacy single-user content.
+- **Admins** manage accounts on the 👥 Users page (deactivate/reactivate). Deactivated users are signed out immediately; admins cannot deactivate themselves.
+- **Closing signup** — set `ALLOW_SIGNUP=false` and restart; existing logins keep working.
+- **Single-user mode** — set `AUTH_ENABLED=false` to skip login entirely (everything attributed to the local user, as before).
 
 Never commit `.env` (gitignored). `.env.example` is the template.
 
@@ -137,8 +147,9 @@ WantedBy=multi-user.target
 
 **Security notes** — read before exposing publicly:
 
-- There is **no login yet** (`AUTH_ENABLED=false`): anyone with the URL can read *and* modify everything. Only self-host on a private network/VPN until multi-user auth lands, or front it with basic-auth at the proxy.
-- Set a real `JWT_SECRET` and correct `CORS_ORIGINS` even now, so enabling auth later is a flag flip.
+- With auth on (default), all data endpoints require a Bearer token and data is per-account — but there is no rate-limiting or 2FA, so still prefer private network/VPN for sensitive deployments, or add proxy-level basic-auth in front.
+- Set a real `JWT_SECRET` and correct `CORS_ORIGINS` in production.
+- With `AUTH_ENABLED=false` there is no login at all: anyone with the URL can read *and* modify everything.
 - Never commit `.env` (gitignored). `.env.example` is the template.
 
 ## Troubleshooting
