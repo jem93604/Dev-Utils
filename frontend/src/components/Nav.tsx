@@ -42,6 +42,9 @@ export function Topbar({
         {favUtils.map((u) => (
           <button key={u.slug} className="tbtn" onClick={() => nav(u.route)} title={u.title}>{u.icon}</button>
         ))}
+        {authEnabled && !authUser && (
+          <button className="tbtn tbtn-primary" onClick={() => nav('/login')} title="Sign in to your workspace">Sign in</button>
+        )}
         {authEnabled && authUser && (
           <>
             {isAdmin && (

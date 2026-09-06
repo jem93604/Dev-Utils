@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import get_current_user_id
+from app.core.deps import get_current_user_id, owned
 from app.models.entities import Pin, Query
 from app.schemas.content import (
     NoteCreate, NoteOut, ReorderNotes, ScriptCreate, ScriptOut, VersionCreate, VersionOut,
@@ -28,6 +28,7 @@ def list_pins(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_curren
 
 @router.put("/pins/{query_id}")
 def pin(query_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    owned(db, Query, query_id, uid, "Query")
     if not db.query(Pin).filter_by(user_id=uid, query_id=query_id).first():
         db.add(Pin(user_id=uid, query_id=query_id))
         db.commit()
@@ -79,10 +80,7 @@ def reorder_notes(payload: ReorderNotes, db: Session = Depends(get_db), uid: uui
 
 @router.patch("/notes/{note_id}", response_model=NoteOut)
 def update_note(note_id: uuid.UUID, payload: NoteCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    from fastapi import HTTPException
-    n = db.get(Note, note_id)
-    if not n:
-        raise HTTPException(404, "Note not found")
+    n = owned(db, Note, note_id, uid, "Note")
     n.title, n.content = payload.title.strip(), payload.content
     db.commit()
     db.refresh(n)
@@ -91,10 +89,9 @@ def update_note(note_id: uuid.UUID, payload: NoteCreate, db: Session = Depends(g
 
 @router.delete("/notes/{note_id}")
 def delete_note(note_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    n = db.get(Note, note_id)
-    if n:
-        db.delete(n)
-        db.commit()
+    n = owned(db, Note, note_id, uid, "Note")
+    db.delete(n)
+    db.commit()
     return {"ok": True}
 
 
@@ -115,10 +112,7 @@ def create_script(payload: ScriptCreate, db: Session = Depends(get_db), uid: uui
 
 @router.patch("/scripts/{script_id}", response_model=ScriptOut)
 def update_script(script_id: uuid.UUID, payload: ScriptCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    from fastapi import HTTPException
-    s = db.get(Script, script_id)
-    if not s:
-        raise HTTPException(404, "Script not found")
+    s = owned(db, Script, script_id, uid, "Script")
     for k, v in payload.model_dump().items():
         setattr(s, k, v)
     db.commit()
@@ -128,16 +122,15 @@ def update_script(script_id: uuid.UUID, payload: ScriptCreate, db: Session = Dep
 
 @router.delete("/scripts/{script_id}")
 def delete_script(script_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    s = db.get(Script, script_id)
-    if s:
-        db.delete(s)
-        db.commit()
+    s = owned(db, Script, script_id, uid, "Script")
+    db.delete(s)
+    db.commit()
     return {"ok": True}
 
 
 # ---- Versions ----
 def _snapshot(db: Session, uid: str) -> dict:
-    secs = db.query(Section).filter(Section.deleted_at.is_(None)).all()
+    secs = db.query(Section).filter(Section.owner_id == uid, Section.deleted_at.is_(None)).all()
     out_secs = []
     for s in secs:
         keys = [r[0] for r in db.query(SectionInput.input_key).filter_by(section_id=s.id).all()]
@@ -172,10 +165,7 @@ def create_version(payload: VersionCreate, db: Session = Depends(get_db), uid: u
 
 @router.post("/versions/{version_id}/restore")
 def restore_version(version_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    from fastapi import HTTPException
-    v = db.get(Version, version_id)
-    if not v:
-        raise HTTPException(404, "Version not found")
+    v = owned(db, Version, version_id, uid, "Version")
     # Full restore is destructive; implement as snapshot re-import (Phase 1 minimal):
     # delete current content for user, re-create from snapshot ids are regenerated.
     from app.services.variables import slugify
@@ -212,8 +202,8 @@ def export_all(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_curre
 @router.get("/stats")
 def stats(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     return {
-        "sections": db.query(Section).filter(Section.deleted_at.is_(None)).count(),
-        "queries": db.query(Query).filter(Query.deleted_at.is_(None)).count(),
+        "sections": db.query(Section).filter(Section.owner_id == uid, Section.deleted_at.is_(None)).count(),
+        "queries": db.query(Query).filter(Query.owner_id == uid, Query.deleted_at.is_(None)).count(),
         "pinned": db.query(Pin).filter_by(user_id=uid).count(),
         "notes": db.query(Note).filter_by(owner_id=uid).count(),
         "scripts": db.query(Script).filter_by(owner_id=uid).count(),

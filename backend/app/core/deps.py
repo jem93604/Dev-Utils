@@ -60,3 +60,15 @@ def require_admin(user: User = Depends(get_current_user)) -> User:
     if not user.is_admin:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "Admin only")
     return user
+
+
+def owned(db: Session, model, obj_id: uuid.UUID, uid: uuid.UUID, name: str = "Item"):
+    """Fetch a row by id, raising 404 unless it exists, is not soft-deleted,
+    and belongs to the current user. Works for owner_id and user_id FKs."""
+    obj = db.get(model, obj_id)
+    owner = getattr(obj, "owner_id", getattr(obj, "user_id", None))
+    if not obj or (owner is not None and owner != uid):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{name} not found")
+    if getattr(obj, "deleted_at", None):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"{name} not found")
+    return obj

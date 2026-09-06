@@ -36,6 +36,7 @@ export function GuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         </Block>
         <Block title="👤 Accounts">
           Sign in to get your own private workspace — queries, notes, scripts, and snapshots are per-account. The first account on a server becomes admin (👥 menu) and can deactivate accounts. Sessions last 7 days; the ⏻ button signs you out.
+          Developer utilities (formatter, differ, converters, …) stay usable without signing in.
         </Block>
         <Block title="💾 Saving">
           Everything saves to <strong style={{ color: 'var(--text)' }}>Postgres automatically</strong> — no manual Save button needed. Use the Versions feature to snapshot and restore your library.

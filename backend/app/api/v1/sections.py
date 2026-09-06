@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 
 from app.core.database import get_db
-from app.core.deps import get_current_user_id
+from app.core.deps import get_current_user_id, owned
 from app.models.entities import Section, SectionInput, Input, Query
 from app.schemas.content import SectionCreate, SectionUpdate, SectionOut
 from app.services.variables import slugify
@@ -21,7 +21,7 @@ def _out(s: Section, db: Session) -> SectionOut:
 
 @router.get("", response_model=list[SectionOut])
 def list_sections(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    secs = db.query(Section).filter(Section.deleted_at.is_(None)).order_by(Section.sort_order, Section.name).all()
+    secs = db.query(Section).filter(Section.owner_id == uid, Section.deleted_at.is_(None)).order_by(Section.sort_order, Section.name).all()
     return [_out(s, db) for s in secs]
 
 
@@ -29,7 +29,7 @@ def list_sections(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_cu
 def create_section(payload: SectionCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     slug = slugify(payload.name)
     base, i = slug, 2
-    while db.query(Section).filter_by(slug=slug).first():
+    while db.query(Section).filter_by(owner_id=uid, slug=slug).first():
         slug = f"{base}-{i}"
         i += 1
     s = Section(owner_id=uid, name=payload.name.strip(), slug=slug,
@@ -47,9 +47,7 @@ def create_section(payload: SectionCreate, db: Session = Depends(get_db), uid: u
 
 @router.patch("/{section_id}", response_model=SectionOut)
 def update_section(section_id: uuid.UUID, payload: SectionUpdate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
-    s = db.get(Section, section_id)
-    if not s or s.deleted_at:
-        raise HTTPException(404, "Section not found")
+    s = owned(db, Section, section_id, uid, "Section")
     if payload.name is not None:
         s.name = payload.name.strip()
     if payload.color is not None:
@@ -70,9 +68,7 @@ def update_section(section_id: uuid.UUID, payload: SectionUpdate, db: Session = 
 @router.delete("/{section_id}")
 def delete_section(section_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     from datetime import datetime, timezone
-    s = db.get(Section, section_id)
-    if not s or s.deleted_at:
-        raise HTTPException(404, "Section not found")
+    s = owned(db, Section, section_id, uid, "Section")
     s.deleted_at = datetime.now(timezone.utc)
     db.query(Query).filter(Query.section_id == s.id).update({"deleted_at": s.deleted_at})
     db.commit()

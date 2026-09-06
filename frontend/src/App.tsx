@@ -51,8 +51,13 @@ function Shell() {
   const { openVersions } = useContentModals();
   const auth = useAuth();
   const searching = term.trim().length > 0;
+  // Pure client-side utilities stay usable without login; everything
+  // backed by per-user data (queries, notes, scripts, versions) stays locked.
+  const PUBLIC_PATHS = ['/login', '/formatter', '/differ', '/utils'];
+  const isPublicPath = (path: string) =>
+    PUBLIC_PATHS.some((p) => path === p || path.startsWith(p + '/'));
   const locked = !auth.loading && !!auth.status?.auth_enabled && !auth.user
-    && location.pathname !== '/login';
+    && !isPublicPath(location.pathname);
 
   if (auth.loading) {
     return (
