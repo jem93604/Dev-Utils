@@ -31,15 +31,13 @@ def _sync_inputs(db: Session, section_id, variables: list[str]):
 
 
 @router.get("/sections/{section_id}/queries", response_model=list[QueryOut])
-def list_queries(section_id: uuid.UUID, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def list_queries(section_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     qs = db.query(Query).filter(Query.section_id == section_id, Query.deleted_at.is_(None)).order_by(Query.sort_order, Query.title).all()
     return [_out(db, uid, q) for q in qs]
 
 
 @router.get("/queries/{query_id}", response_model=QueryOut)
-def get_query(query_id: uuid.UUID, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def get_query(query_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     q = db.get(Query, query_id)
     if not q or q.deleted_at:
         raise HTTPException(404, "Query not found")
@@ -47,8 +45,7 @@ def get_query(query_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.post("/queries", response_model=QueryOut)
-def create_query(payload: QueryCreate, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def create_query(payload: QueryCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     sec = db.get(Section, payload.section_id)
     if not sec or sec.deleted_at:
         raise HTTPException(404, "Section not found")
@@ -66,8 +63,7 @@ def create_query(payload: QueryCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/queries/{query_id}", response_model=QueryOut)
-def update_query(query_id: uuid.UUID, payload: QueryUpdate, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def update_query(query_id: uuid.UUID, payload: QueryUpdate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     q = db.get(Query, query_id)
     if not q or q.deleted_at:
         raise HTTPException(404, "Query not found")
@@ -92,7 +88,7 @@ def update_query(query_id: uuid.UUID, payload: QueryUpdate, db: Session = Depend
 
 
 @router.delete("/queries/{query_id}")
-def delete_query(query_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_query(query_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     from datetime import datetime, timezone
     q = db.get(Query, query_id)
     if not q or q.deleted_at:
@@ -104,13 +100,12 @@ def delete_query(query_id: uuid.UUID, db: Session = Depends(get_db)):
 
 
 @router.get("/inputs", response_model=list[InputOut])
-def list_inputs(db: Session = Depends(get_db)):
+def list_inputs(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     return db.query(Input).order_by(Input.key).all()
 
 
 @router.get("/search")
-def search(q: str = QParam(min_length=1), db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def search(q: str = QParam(min_length=1), db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     like = f"%{q}%"
     secs = db.query(Section).filter(Section.deleted_at.is_(None),
                                     (Section.name.ilike(like)) | (Section.description.ilike(like))).all()

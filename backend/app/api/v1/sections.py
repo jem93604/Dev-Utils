@@ -20,14 +20,13 @@ def _out(s: Section, db: Session) -> SectionOut:
 
 
 @router.get("", response_model=list[SectionOut])
-def list_sections(db: Session = Depends(get_db)):
+def list_sections(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     secs = db.query(Section).filter(Section.deleted_at.is_(None)).order_by(Section.sort_order, Section.name).all()
     return [_out(s, db) for s in secs]
 
 
 @router.post("", response_model=SectionOut)
-def create_section(payload: SectionCreate, db: Session = Depends(get_db)):
-    uid = get_current_user_id(db)
+def create_section(payload: SectionCreate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     slug = slugify(payload.name)
     base, i = slug, 2
     while db.query(Section).filter_by(slug=slug).first():
@@ -47,7 +46,7 @@ def create_section(payload: SectionCreate, db: Session = Depends(get_db)):
 
 
 @router.patch("/{section_id}", response_model=SectionOut)
-def update_section(section_id: uuid.UUID, payload: SectionUpdate, db: Session = Depends(get_db)):
+def update_section(section_id: uuid.UUID, payload: SectionUpdate, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     s = db.get(Section, section_id)
     if not s or s.deleted_at:
         raise HTTPException(404, "Section not found")
@@ -69,7 +68,7 @@ def update_section(section_id: uuid.UUID, payload: SectionUpdate, db: Session = 
 
 
 @router.delete("/{section_id}")
-def delete_section(section_id: uuid.UUID, db: Session = Depends(get_db)):
+def delete_section(section_id: uuid.UUID, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     from datetime import datetime, timezone
     s = db.get(Section, section_id)
     if not s or s.deleted_at:

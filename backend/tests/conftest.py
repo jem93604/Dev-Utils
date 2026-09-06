@@ -1,5 +1,11 @@
 """Isolated API tests: in-memory SQLite, fresh tables per test."""
+import os
 import uuid
+
+# CI has no backend/.env: pin single-user defaults here so the legacy suite
+# is deterministic. Auth tests opt into AUTH_ENABLED=true per-test.
+os.environ.setdefault("AUTH_ENABLED", "false")
+os.environ.setdefault("JWT_SECRET", "test-secret")
 
 import pytest
 from fastapi.testclient import TestClient

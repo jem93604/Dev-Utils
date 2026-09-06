@@ -5,11 +5,13 @@ class Settings(BaseSettings):
     app_name: str = "SQL Hub API"
     database_url: str = "postgresql+psycopg2://sqlhub:sqlhub@localhost:5432/sqlhub"
     # Sync URL used by Alembic (same driver)
-    auth_enabled: bool = False
+    auth_enabled: bool = True
+    allow_signup: bool = True
     default_user_email: str = "local@sqlhub.internal"
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
     jwt_secret: str = "change-me-in-prod"
     jwt_algorithm: str = "HS256"
+    jwt_expire_days: int = 7
 
     model_config = {"env_file": ".env", "extra": "ignore"}
 

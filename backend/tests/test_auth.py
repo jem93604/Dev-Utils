@@ -1,0 +1,134 @@
+"""Auth tests: registration, login, isolation, admin controls.
+
+Runs with AUTH_ENABLED=true (monkeypatched); the legacy suite keeps the
+single-user default. Each test gets a fresh isolated database.
+"""
+import pytest
+
+from app.core.config import settings
+from app.core.security import create_token
+from app.models.entities import Note, User
+
+
+@pytest.fixture()
+def auth_on(monkeypatch):
+    monkeypatch.setattr(settings, "auth_enabled", True)
+    monkeypatch.setattr(settings, "allow_signup", True)
+    monkeypatch.setattr(settings, "jwt_secret", "test-secret")
+    monkeypatch.setattr(settings, "jwt_expire_days", 7)
+
+
+def register(client, email="admin@x.com", password="password123", name="Admin"):
+    r = client.post(
+        "/api/v1/auth/register",
+        json={"email": email, "password": password, "display_name": name},
+    )
+    assert r.status_code == 201, r.text
+    return r.json()
+
+
+def auth_h(token):
+    return {"Authorization": f"Bearer {token}"}
+
+
+def test_register_first_user_becomes_admin(client, auth_on):
+    body = register(client)
+    assert body["user"]["is_admin"] is True
+    assert body["user"]["email"] == "admin@x.com"
+    assert body["token_type"] == "bearer"
+
+    me = client.get("/api/v1/auth/me", headers=auth_h(body["access_token"]))
+    assert me.status_code == 200
+    assert me.json()["email"] == "admin@x.com"
+
+
+def test_register_validation(client, auth_on):
+    assert client.post("/api/v1/auth/register", json={"email": "bad", "password": "password123"}).status_code == 422
+    assert client.post("/api/v1/auth/register", json={"email": "a@b.com", "password": "short"}).status_code == 422
+    register(client, email="dup@x.com")
+    r = client.post("/api/v1/auth/register", json={"email": "dup@x.com", "password": "password123"})
+    assert r.status_code == 409
+
+
+def test_login_flow(client, auth_on):
+    register(client, email="admin0@x.com")
+    register(client, email="u@x.com", password="correct-horse")
+    ok = client.post("/api/v1/auth/login", json={"email": "u@x.com", "password": "correct-horse"})
+    assert ok.status_code == 200
+    assert ok.json()["user"]["is_admin"] is False
+
+    bad = client.post("/api/v1/auth/login", json={"email": "u@x.com", "password": "wrong"})
+    assert bad.status_code == 401
+    assert client.post("/api/v1/auth/login", json={"email": "nobody@x.com", "password": "whatever123"}).status_code == 401
+
+
+def test_unauthenticated_rejected(client, auth_on):
+    assert client.get("/api/v1/auth/me").status_code == 401
+    assert client.get("/api/v1/notes").status_code == 401
+    assert client.get("/api/v1/auth/me", headers=auth_h("garbage")).status_code == 401
+    expired = create_token("00000000-0000-0000-0000-000000000000", "test-secret", -1)
+    assert client.get("/api/v1/auth/me", headers=auth_h(expired)).status_code == 401
+
+
+def test_users_are_isolated(client, auth_on):
+    a = register(client, email="a@x.com")
+    b = register(client, email="b@x.com")
+    assert b["user"]["is_admin"] is False
+
+    n = client.post("/api/v1/notes", json={"title": "A secret", "content": ""}, headers=auth_h(a["access_token"]))
+    assert n.status_code == 200
+    assert client.get("/api/v1/notes", headers=auth_h(b["access_token"])).json() == []
+    assert client.get("/api/v1/search", params={"q": "secret"}, headers=auth_h(b["access_token"])).json()["notes"] == []
+    assert [x["title"] for x in client.get("/api/v1/search", params={"q": "secret"}, headers=auth_h(a["access_token"])).json()["notes"]] == ["A secret"]
+
+
+def test_non_admin_cannot_manage_users(client, auth_on):
+    a = register(client, email="a@x.com")
+    b = register(client, email="b@x.com")
+    assert client.get("/api/v1/auth/users", headers=auth_h(b["access_token"])).status_code == 403
+    assert len(client.get("/api/v1/auth/users", headers=auth_h(a["access_token"])).json()) == 2
+
+
+def test_admin_deactivate_blocks_user(client, auth_on):
+    a = register(client, email="a@x.com")
+    b = register(client, email="b@x.com")
+    r = client.patch(
+        f"/api/v1/auth/users/{b['user']['id']}",
+        json={"is_active": False},
+        headers=auth_h(a["access_token"]),
+    )
+    assert r.status_code == 200
+    assert client.post("/api/v1/auth/login", json={"email": "b@x.com", "password": "password123"}).status_code == 403
+    assert client.get("/api/v1/auth/me", headers=auth_h(b["access_token"])).status_code == 401
+    # admin cannot deactivate themselves
+    r2 = client.patch(
+        f"/api/v1/auth/users/{a['user']['id']}",
+        json={"is_active": False},
+        headers=auth_h(a["access_token"]),
+    )
+    assert r2.status_code == 400
+
+
+def test_signup_closed_blocks_second_user(client, auth_on, monkeypatch):
+    register(client, email="first@x.com")
+    monkeypatch.setattr(settings, "allow_signup", False)
+    r = client.post("/api/v1/auth/register", json={"email": "second@x.com", "password": "password123"})
+    assert r.status_code == 403
+
+
+def test_first_admin_adopts_legacy_content(client, auth_on, db_session):
+    from app.core.deps import _default_user
+
+    legacy = _default_user(db_session)
+    db_session.add(Note(owner_id=legacy.id, title="legacy note", content="keep me", sort_order=0))
+    db_session.commit()
+
+    body = register(client, email="newadmin@x.com")
+    assert body["user"]["is_admin"] is True
+    notes = client.get("/api/v1/notes", headers=auth_h(body["access_token"])).json()
+    assert [n["title"] for n in notes] == ["legacy note"]
+    assert db_session.query(User).filter(User.email == settings.default_user_email).first() is None
+
+
+def test_status_endpoint(client, auth_on):
+    assert client.get("/api/v1/auth/status").json() == {"auth_enabled": True, "allow_signup": True}

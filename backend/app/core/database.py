@@ -33,6 +33,7 @@ def ensure_columns():
 
     pending = [
         ("notes", "sort_order", "ALTER TABLE notes ADD COLUMN sort_order INTEGER DEFAULT 0"),
+        ("users", "is_admin", "ALTER TABLE users ADD COLUMN is_admin BOOLEAN DEFAULT FALSE"),
     ]
     with engine.begin() as conn:
         for table, column, ddl in pending:
