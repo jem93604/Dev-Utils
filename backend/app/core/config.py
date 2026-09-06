@@ -3,7 +3,7 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     app_name: str = "SQL Hub API"
-    database_url: str = "postgresql+psycopg2://sqlhub:sqlhub@localhost:5432/sqlhub"
+    database_url: str = "sqlite:///./sqlhub.db"
     # Sync URL used by Alembic (same driver)
     auth_enabled: bool = False
     default_user_email: str = "local@sqlhub.internal"
