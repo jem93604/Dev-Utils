@@ -14,7 +14,8 @@ describe('resolveSyncedList', () => {
     expect(resolveSyncedList([], [])).toEqual({ value: [], pushUp: false });
   });
 
-  it('keeps local when server never stored the key', () => {
-    expect(resolveSyncedList(['a'], undefined)).toEqual({ value: ['a'], pushUp: false });
+  it('pushes local up when server never stored the key', () => {
+    expect(resolveSyncedList(['a'], undefined)).toEqual({ value: ['a'], pushUp: true });
+    expect(resolveSyncedList([], undefined)).toEqual({ value: [], pushUp: false });
   });
 });

@@ -10,15 +10,15 @@ export interface SyncConfig {
 
 export const NO_SYNC: SyncConfig = { userKey: null, canSync: false };
 
-/** Merge rule: a stored server value wins; an empty server adopts local
- *  (one-time migration, pushed up). Pure (tested). */
+/** Merge rule: a stored server value wins; a missing or empty server key
+ *  adopts local (first sync, pushed up). Pure (tested). */
 export function resolveSyncedList(
   local: string[],
   server: string[] | undefined,
 ): { value: string[]; pushUp: boolean } {
   if (server !== undefined && server.length > 0) return { value: server, pushUp: false };
-  if (server !== undefined && server.length === 0 && local.length > 0) return { value: local, pushUp: true };
-  return { value: local, pushUp: false };
+  if (local.length > 0) return { value: local, pushUp: true };
+  return { value: [], pushUp: false };
 }
 
 function loadLocal(key: string, validate: (v: string[]) => string[]): string[] {
