@@ -45,6 +45,13 @@ describe('decodeJwt', () => {
     expect(decodeJwt('nope').ok).toBe(false);
     expect(decodeJwt('a.b.c').ok).toBe(false);
   });
+  it('flags expired tokens with expiresAt', () => {
+    const expired = `eyJhbGciOiJIUzI1NiJ9.${b64encode(JSON.stringify({ sub: '1', exp: 1000 })).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')}.sig`;
+    const r = decodeJwt(expired);
+    expect(r.ok).toBe(true);
+    expect(r.expired).toBe(true);
+    expect(r.expiresAt).toBeDefined();
+  });
 });
 
 describe('genUuids', () => {
@@ -64,8 +71,15 @@ describe('convertBase', () => {
       dec: '255', hex: '0xFF', bin: '0b11111111', oct: '0o377',
     });
   });
+  it('converts from dec/bin/oct and handles empty', () => {
+    expect(convertBase('255', 'dec').hex).toBe('0xFF');
+    expect(convertBase('11111111', 'bin').dec).toBe('255');
+    expect(convertBase('377', 'oct').dec).toBe('255');
+    expect(convertBase('', 'dec')).toEqual({ dec: '', hex: '', bin: '', oct: '' });
+  });
   it('rejects invalid digits', () => {
     expect(convertBase('ZZ', 'hex').error).toMatch(/base-16/);
+    expect(convertBase('102', 'bin').error).toMatch(/base-2/);
   });
 });
 
@@ -73,8 +87,17 @@ describe('text toolkit', () => {
   it('computes stats', () => {
     expect(textStats('hi there\nyou')).toEqual({ chars: 12, words: 3, lines: 2 });
   });
+  it('handles empty input stats', () => {
+    expect(textStats('')).toEqual({ chars: 0, words: 0, lines: 0 });
+    expect(textStats('   ')).toEqual({ chars: 3, words: 0, lines: 1 });
+  });
   it('cleans whitespace and builds lorem', () => {
     expect(cleanWhitespace('a   b\n\n\nc  ')).toBe('a b\n\nc');
+    expect(cleanWhitespace('a\t\tb  \n  c')).toBe('a b\n c');
     expect(lorem(2).split('\n\n')).toHaveLength(2);
+  });
+  it('clamps lorem paragraphs to 1..10', () => {
+    expect(lorem(0).split('\n\n')).toHaveLength(1);
+    expect(lorem(99).split('\n\n')).toHaveLength(10);
   });
 });
