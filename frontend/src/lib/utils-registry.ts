@@ -18,6 +18,8 @@ import { differUtil } from '../utils/differ';
 import { notesUtil } from '../utils/notes';
 import { libraryUtil } from '../utils/library';
 import { hashUtil } from '../utils/hash';
+import { cronUtil } from '../utils/cron';
+import { urlcodecUtil } from '../utils/urlcodec';
 
 export interface UtilDef {
   slug: string;
@@ -42,6 +44,8 @@ export const ALL_UTILS: UtilModule[] = [
   yamlUtil,
   textUtil,
   hashUtil,
+  cronUtil,
+  urlcodecUtil,
 ];
 
 export const UTILS: UtilDef[] = ALL_UTILS.map((u) => ({

@@ -1,6 +1,6 @@
 import type { LazyExoticComponent, JSX } from 'react';
 
-export type UtilCategory = 'format' | 'encode' | 'time' | 'text' | 'gen';
+export type UtilCategory = 'format' | 'encode' | 'time' | 'text' | 'gen' | 'sql';
 
 export interface UtilModule {
   slug: string;
