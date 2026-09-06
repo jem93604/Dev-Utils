@@ -5,6 +5,7 @@ description = "SQL Hub API — FastAPI + Postgres"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.17.0",
+    "bcrypt==4.0.1",
     "fastapi>=0.123.9",
     "passlib>=1.7.4",
     "psycopg2-binary>=2.9.12",
