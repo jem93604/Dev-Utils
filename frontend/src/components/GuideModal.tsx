@@ -34,6 +34,9 @@ export function GuideModal({ open, onClose }: { open: boolean; onClose: () => vo
         <Block title="🎨 Themes">
           Click the theme icon in the topbar to switch between Default Dark, Monokai, Solarized Dark/Light, and Soft Gray. Your choice is remembered.
         </Block>
+        <Block title="👤 Accounts">
+          Sign in to get your own private workspace — queries, notes, scripts, and snapshots are per-account. The first account on a server becomes admin (👥 menu) and can deactivate accounts. Sessions last 7 days; the ⏻ button signs you out.
+        </Block>
         <Block title="💾 Saving">
           Everything saves to <strong style={{ color: 'var(--text)' }}>Postgres automatically</strong> — no manual Save button needed. Use the Versions feature to snapshot and restore your library.
         </Block>

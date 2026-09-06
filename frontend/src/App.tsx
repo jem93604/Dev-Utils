@@ -9,6 +9,8 @@ import { ToastHost } from './components/ui';
 import { usePins, useSections } from './hooks/useData';
 import { useTheme } from './hooks/useTheme';
 import { useUtilFavs } from './hooks/useUtilFavs';
+import { useAuth } from './hooks/useAuth';
+import { LoginPage, UsersPage } from './pages/AuthPages';
 import { AllPage, DifferPage, FormatterPage, HomePage, LibraryPage, NotesPage, SearchResultsPage, SectionPage, UtilPage, UtilsHubPage } from './pages/pages';
 import {
   BasePanel, CodecPanel, JwtPanel, RegexPanel, TextPanel,
@@ -47,7 +49,19 @@ function Shell() {
   const { theme, setTheme } = useTheme();
   const { favs, toggle: toggleFav } = useUtilFavs();
   const { openVersions } = useContentModals();
+  const auth = useAuth();
   const searching = term.trim().length > 0;
+  const locked = !auth.loading && !!auth.status?.auth_enabled && !auth.user
+    && location.pathname !== '/login';
+
+  if (auth.loading) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div className="empty" style={{ margin: 'auto' }}><div className="empty-text">Loading…</div></div>
+        <ToastHost />
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -59,18 +73,26 @@ function Shell() {
         onOpenThemes={() => setThemeOpen(true)}
         utilFavs={favs}
         onOpenVersions={openVersions}
+        authUser={auth.user}
+        authEnabled={!!auth.status?.auth_enabled}
+        isAdmin={!!auth.user?.is_admin}
+        onLogout={auth.logout}
       />
       <ModuleChips sections={sections} active={searching ? '' : activeFromPath(location.pathname)} />
       <div className="layout">
         <Sidebar sections={sections} pins={pins.length} collapsed={!sideOpen} />
         <main className="main" id="main-content-area">
-          {searching ? (
+          {locked ? (
+            <LoginPage auth={auth} />
+          ) : searching ? (
             <SearchResultsPage term={term} />
           ) : (
           <Routes>
             <Route path="/" element={<HomePage />} />
             <Route path="/all" element={<AllPage />} />
             <Route path="/s/:slug" element={<SectionRoute />} />
+            <Route path="/login" element={<LoginPage auth={auth} />} />
+            <Route path="/users" element={<UsersPage auth={auth} />} />
             <Route path="/formatter" element={<FormatterPage />} />
             <Route path="/differ" element={<DifferPage />} />
             <Route path="/notes" element={<NotesPage />} />

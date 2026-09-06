@@ -4,15 +4,18 @@ import type { Section } from '../lib/api';
 import { THEMES } from '../lib/themes';
 import { utilBySlug } from '../lib/utils-registry';
 import { MAX_FAVS } from '../hooks/useUtilFavs';
+import type { AuthUser } from '../lib/api';
 
 import { useContentModals } from './ContentModals';
 
 export function Topbar({
   onSearch, onToggleSidebar, onOpenGuide, theme, onOpenThemes, utilFavs, onOpenVersions,
+  authUser, authEnabled, isAdmin, onLogout,
 }: {
   onSearch: (q: string) => void; onToggleSidebar: () => void;
   onOpenGuide: () => void; theme: string; onOpenThemes: () => void;
   utilFavs: string[]; onOpenVersions: () => void;
+  authUser: AuthUser | null; authEnabled: boolean; isAdmin: boolean; onLogout: () => void;
 }) {
   const nav = useNavigate();
   const themeIcon = THEMES.find((t) => t.id === theme)?.icon ?? '🌙';
@@ -39,6 +42,25 @@ export function Topbar({
         {favUtils.map((u) => (
           <button key={u.slug} className="tbtn" onClick={() => nav(u.route)} title={u.title}>{u.icon}</button>
         ))}
+        {authEnabled && authUser && (
+          <>
+            {isAdmin && (
+              <button className="tbtn" onClick={() => nav('/users')} title="Manage users">👥</button>
+            )}
+            <span
+              title={authUser.email}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                fontSize: '.72rem', fontWeight: 700, color: 'var(--amber)',
+                background: 'var(--amber-dim)', border: '1px solid rgba(240,165,0,.3)',
+                borderRadius: 20, padding: '4px 10px', whiteSpace: 'nowrap',
+              }}
+            >
+              {authUser.is_admin ? '👑 ' : ''}{authUser.display_name || authUser.email}
+            </span>
+            <button className="tbtn" onClick={onLogout} title={`Sign out (${authUser.email})`}>⏻</button>
+          </>
+        )}
       </div>
     </div>
   );
