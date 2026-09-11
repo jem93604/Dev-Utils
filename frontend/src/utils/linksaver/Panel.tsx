@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { detectPlatform, isPlaylistUrl, isValidMediaUrl } from "./lib";
+import { api } from "../../lib/api";
+import { detectPlatform, isBlockedMediaUrl, isPlaylistUrl, isValidMediaUrl } from "./lib";
 import { ErrMsg, UtilShell } from "../ui";
 
 interface Resolved {
@@ -27,24 +28,34 @@ export function LinkSaverPanel() {
       setError("Enter a valid http(s) URL");
       return;
     }
+    if (isBlockedMediaUrl(url)) {
+      setError("That host is not allowed (internal/local addresses are blocked)");
+      return;
+    }
     if (isPlaylistUrl(url)) {
       setError("Playlists not supported in v1 — paste a single video URL");
       return;
     }
     setLoading(true);
     try {
-      const r = await fetch("/api/v1/media/resolve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), quality, audio_only: audioOnly }),
+      // api client attaches the Bearer token; raw fetch would send none
+      // and /media/resolve (authenticated) would 401 for logged-in users.
+      const r = await api.post("/media/resolve", {
+        url: url.trim(),
+        quality,
+        audio_only: audioOnly,
       });
-      if (!r.ok) {
-        const d = await r.json().catch(() => ({}));
-        throw new Error((d as { detail?: string }).detail ?? `Resolve failed (${r.status})`);
-      }
-      setData((await r.json()) as Resolved);
+      setData(r.data as Resolved);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Resolve failed");
+      const detail = (e as { response?: { status?: number; data?: { detail?: unknown } } })?.response;
+      const msg =
+        typeof detail?.data?.detail === "string"
+          ? detail.data.detail
+          : e instanceof Error
+            ? e.message
+            : "Resolve failed";
+      // Don't leak raw backend internals; show status for non-422/429 cases.
+      setError(detail?.status && detail.status >= 500 ? "Resolve failed — upstream unavailable" : msg);
     } finally {
       setLoading(false);
     }

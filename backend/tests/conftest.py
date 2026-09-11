@@ -37,6 +37,12 @@ def db_session():
 
 @pytest.fixture()
 def client(db_session):
+    from app.core.rate_limit import clear_rate_limits
+
+    # Rate limiter is process-global (keyed by TestClient IP); reset per
+    # test so auth/media 429s from one test can't leak into the next.
+    clear_rate_limits()
+
     def override():
         try:
             yield db_session
@@ -47,6 +53,7 @@ def client(db_session):
     with TestClient(app, raise_server_exceptions=False) as c:
         yield c
     app.dependency_overrides.clear()
+    clear_rate_limits()
 
 
 @pytest.fixture()

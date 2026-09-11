@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectPlatform, isPlaylistUrl, isValidMediaUrl } from "./lib";
+import { detectPlatform, isBlockedMediaUrl, isPlaylistUrl, isValidMediaUrl } from "./lib";
 
 describe("linksaver lib", () => {
   it("detects youtube/tiktok/x", () => {
@@ -25,5 +25,18 @@ describe("linksaver lib", () => {
     expect(isValidMediaUrl(share)).toBe(true);
     // si= is a share-tracking param, not a playlist — must not be rejected
     expect(isPlaylistUrl(share)).toBe(false);
+  });
+
+  it("blocks internal/local hosts (SSRF mirror of backend guard)", () => {
+    expect(isBlockedMediaUrl("https://www.youtube.com/watch?v=x")).toBe(false);
+    expect(isBlockedMediaUrl("http://localhost:8001/admin")).toBe(true);
+    expect(isBlockedMediaUrl("http://127.0.0.1:8001/")).toBe(true);
+    expect(isBlockedMediaUrl("http://10.0.0.5/")).toBe(true);
+    expect(isBlockedMediaUrl("http://192.168.1.1/")).toBe(true);
+    expect(isBlockedMediaUrl("http://169.254.169.254/latest/meta-data/")).toBe(true);
+    expect(isBlockedMediaUrl("http://metadata.google.internal/")).toBe(true);
+    expect(isBlockedMediaUrl("http://printer.local/")).toBe(true);
+    expect(isBlockedMediaUrl("ftp://example.com/x")).toBe(true);
+    expect(isBlockedMediaUrl("not-a-url")).toBe(true);
   });
 });

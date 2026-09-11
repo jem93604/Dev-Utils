@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildHtmlExport, extractMermaidBlocks, normalizeMathDelimiters } from './markdown';
+import { buildHtmlExport, extractMermaidBlocks, normalizeMathDelimiters, sanitizeRenderedHtml } from './markdown';
 
 describe('extractMermaidBlocks', () => {
   it('extracts mermaid code fences', () => {
@@ -43,5 +43,30 @@ describe('normalizeMathDelimiters', () => {
     const out = normalizeMathDelimiters('`\\(x\\)` and \\(y\\)');
     expect(out).toContain('`\\(x\\)`');
     expect(out).toContain('$y$');
+  });
+});
+
+describe('sanitizeRenderedHtml', () => {
+  it('strips scripts, iframes, objects, embeds, forms', () => {
+    const out = sanitizeRenderedHtml(
+      '<p>ok</p><script>alert(1)</script><iframe src="x"></iframe><form action="/x"><input></form>',
+    );
+    expect(out).toContain('<p>ok</p>');
+    expect(out).not.toContain('<script');
+    expect(out).not.toContain('<iframe');
+    expect(out).not.toContain('<form');
+  });
+  it('strips event handlers and javascript: urls', () => {
+    const out = sanitizeRenderedHtml(
+      '<img src="x" onerror="alert(1)"><a href="javascript:alert(1)">x</a><a href="https://ok.com">y</a>',
+    );
+    expect(out).not.toContain('onerror');
+    expect(out).not.toContain('javascript:');
+    expect(out).toContain('https://ok.com');
+  });
+  it('keeps safe formatting tags', () => {
+    const out = sanitizeRenderedHtml('<details><summary>hi</summary><kbd>Esc</kbd> <mark>x</mark></details>');
+    expect(out).toContain('<details>');
+    expect(out).toContain('<kbd>Esc</kbd>');
   });
 });

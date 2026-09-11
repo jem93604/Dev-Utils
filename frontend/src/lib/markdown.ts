@@ -37,6 +37,33 @@ function escapeTitle(t: string): string {
   return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Strip dangerous constructs from rendered preview/export HTML.
+ * The preview pipeline (rehype-raw) and mermaid both use innerHTML, and
+ * buildHtmlExport inlines preview HTML into a file — so script tags,
+ * event handlers, javascript: URLs, and form/action attributes must go.
+ * Keep formatting tags (incl. <details>, <kbd>, <mark>) untouched.
+ */
+export function sanitizeRenderedHtml(html: string): string {
+  let out = html.replace(/<script[\s\S]*?<\/script\s*>/gi, '');
+  out = out.replace(/<iframe[\s\S]*?<\/iframe\s*>/gi, '');
+  out = out.replace(/<object[\s\S]*?<\/object\s*>/gi, '');
+  out = out.replace(/<embed[^>]*>/gi, '');
+  out = out.replace(/<form[\s\S]*?<\/form\s*>/gi, '');
+  // event-handler attributes: onclick=, onerror=, ... (quoted or not)
+  out = out.replace(/\s+on[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, '');
+  // javascript:/data:text/html URLs in href/src/action/xlink:href
+  out = out.replace(
+    /\s(href|src|action|xlink:href)\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/gi,
+    (m, _attr: string, _q: string, d1: string, d2: string, d3: string) => {
+      const v = (d1 ?? d2 ?? d3 ?? '').trim().toLowerCase();
+      if (v.startsWith('javascript:') || v.startsWith('data:text/html')) return '';
+      return m;
+    },
+  );
+  return out;
+}
+
 export function buildHtmlExport(bodyHtml: string, title = 'Markdown export'): string {
   return `<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<meta name="viewport" content="width=device-width,initial-scale=1">\n<title>${escapeTitle(title)}</title>\n<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">\n<style>${EXPORT_CSS}</style>\n</head>\n<body>\n${bodyHtml}\n</body>\n</html>`;
 }

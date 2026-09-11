@@ -29,8 +29,8 @@ class UserCreate(BaseModel):
 
 
 class LoginIn(BaseModel):
-    email: str
-    password: str
+    email: str = Field(max_length=255)
+    password: str = Field(max_length=128)
 
 
 class UserOut(BaseModel):

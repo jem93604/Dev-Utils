@@ -7,7 +7,7 @@ import rehypeKatex from 'rehype-katex';
 import rehypeRaw from 'rehype-raw';
 import mermaid from 'mermaid';
 import 'katex/dist/katex.min.css';
-import { buildHtmlExport, downloadTextFile, extractMermaidBlocks, normalizeMathDelimiters } from '../../lib/markdown';
+import { buildHtmlExport, downloadTextFile, extractMermaidBlocks, normalizeMathDelimiters, sanitizeRenderedHtml } from '../../lib/markdown';
 import { CopyBtn, UtilShell as Shell } from '../ui';
 
 const SAMPLE = [
@@ -135,7 +135,7 @@ function MermaidBlock({ code }: { code: string }) {
     mermaid
       .render(`mmd-${id}`, code)
       .then((r) => {
-        if (alive && ref.current) ref.current.innerHTML = r.svg;
+        if (alive && ref.current) ref.current.innerHTML = sanitizeRenderedHtml(r.svg);
       })
       .catch((e) => {
         if (alive) setErr(String(e?.message ?? e));
@@ -160,7 +160,7 @@ export function MarkdownPanel() {
   const downloadMd = () => downloadTextFile('markdown-export.md', input, 'text/markdown');
 
   const downloadHtml = () => {
-    const body = previewRef.current?.innerHTML ?? '';
+    const body = sanitizeRenderedHtml(previewRef.current?.innerHTML ?? '');
     downloadTextFile('markdown-export.html', buildHtmlExport(body, title), 'text/html');
   };
 

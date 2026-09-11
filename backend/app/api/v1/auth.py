@@ -8,12 +8,13 @@
 """
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.deps import get_current_user, require_admin
+from app.core.rate_limit import check_rate_limit
 from app.core.security import create_token, hash_password, verify_password
 from app.models.entities import (
     InputHistory, Note, Pin, Query, Script, Section, User, Version,
@@ -21,6 +22,12 @@ from app.models.entities import (
 from app.schemas.auth import LoginIn, TokenOut, UserAdminUpdate, UserCreate, UserOut
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _auth_rate_limit(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    if not check_rate_limit(f"auth:{ip}", settings.auth_rate_limit_per_min):
+        raise HTTPException(429, "Too many auth attempts — try again in a minute")
 
 
 def _token_for(user: User) -> TokenOut:
@@ -52,7 +59,8 @@ def auth_status() -> dict:
 
 
 @router.post("/register", response_model=TokenOut, status_code=status.HTTP_201_CREATED)
-def register(payload: UserCreate, db: Session = Depends(get_db)):
+def register(payload: UserCreate, request: Request, db: Session = Depends(get_db)):
+    _auth_rate_limit(request)
     if not settings.auth_enabled:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Auth is disabled")
     existing = db.query(User).filter(User.email == payload.email).first()
@@ -90,7 +98,8 @@ def register(payload: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenOut)
-def login(payload: LoginIn, db: Session = Depends(get_db)):
+def login(payload: LoginIn, request: Request, db: Session = Depends(get_db)):
+    _auth_rate_limit(request)
     if not settings.auth_enabled:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Auth is disabled")
     user = db.query(User).filter(User.email == payload.email.strip().lower()).first()

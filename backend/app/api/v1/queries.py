@@ -95,7 +95,7 @@ def list_inputs(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_curr
 
 
 @router.get("/search")
-def search(q: str = QParam(min_length=1), db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+def search(q: str = QParam(min_length=1, max_length=200), db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
     like = f"%{q}%"
     secs = db.query(Section).filter(Section.owner_id == uid, Section.deleted_at.is_(None),
                                     (Section.name.ilike(like)) | (Section.description.ilike(like))).all()

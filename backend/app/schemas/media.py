@@ -2,8 +2,8 @@ from pydantic import BaseModel, Field
 
 
 class MediaResolveRequest(BaseModel):
-    url: str
-    quality: str = "720"
+    url: str = Field(max_length=2000)
+    quality: str = Field(default="720", max_length=10)
     audio_only: bool = False
 
 

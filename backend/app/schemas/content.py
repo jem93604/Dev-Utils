@@ -6,15 +6,15 @@ from pydantic import BaseModel, Field
 class SectionCreate(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     color: str = "#f0a500"
-    description: str = ""
-    inputs: list[str] = []
+    description: str = Field(default="", max_length=5000)
+    inputs: list[str] = Field(default_factory=list, max_length=50)
 
 
 class SectionUpdate(BaseModel):
-    name: str | None = None
+    name: str | None = Field(default=None, max_length=200)
     color: str | None = None
-    description: str | None = None
-    inputs: list[str] | None = None
+    description: str | None = Field(default=None, max_length=5000)
+    inputs: list[str] | None = Field(default=None, max_length=50)
 
 
 class SectionOut(BaseModel):
@@ -32,17 +32,17 @@ class SectionOut(BaseModel):
 class QueryCreate(BaseModel):
     section_id: uuid.UUID
     title: str = Field(min_length=1, max_length=300)
-    purpose: str = ""
-    steps: str = ""
-    sql_text: str = Field(min_length=1)
+    purpose: str = Field(default="", max_length=10000)
+    steps: str = Field(default="", max_length=10000)
+    sql_text: str = Field(min_length=1, max_length=100000)
 
 
 class QueryUpdate(BaseModel):
     section_id: uuid.UUID | None = None
-    title: str | None = None
-    purpose: str | None = None
-    steps: str | None = None
-    sql_text: str | None = None
+    title: str | None = Field(default=None, max_length=300)
+    purpose: str | None = Field(default=None, max_length=10000)
+    steps: str | None = Field(default=None, max_length=10000)
+    sql_text: str | None = Field(default=None, min_length=1, max_length=100000)
 
 
 class QueryOut(BaseModel):
@@ -68,7 +68,7 @@ class InputOut(BaseModel):
 
 class NoteCreate(BaseModel):
     title: str = Field(min_length=1, max_length=300)
-    content: str = ""
+    content: str = Field(default="", max_length=50000)
 
 
 class NoteOut(NoteCreate):
@@ -83,15 +83,15 @@ class NoteOut(NoteCreate):
 class ReorderNotes(BaseModel):
     """Full custom order: first id gets sort_order 0, next 1, ..."""
 
-    ids: list[uuid.UUID]
+    ids: list[uuid.UUID] = Field(max_length=500)
 
 
 class ScriptCreate(BaseModel):
-    file_name: str = ""
-    path: str = ""
-    remark: str = ""
-    purpose: str = ""
-    steps: str = ""
+    file_name: str = Field(default="", max_length=300)
+    path: str = Field(default="", max_length=1000)
+    remark: str = Field(default="", max_length=1000)
+    purpose: str = Field(default="", max_length=10000)
+    steps: str = Field(default="", max_length=10000)
 
 
 class ScriptOut(ScriptCreate):
@@ -101,7 +101,7 @@ class ScriptOut(ScriptCreate):
 
 
 class VersionCreate(BaseModel):
-    remark: str = "Snapshot"
+    remark: str = Field(default="Snapshot", max_length=500)
 
 
 class VersionOut(BaseModel):

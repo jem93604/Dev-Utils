@@ -2,7 +2,7 @@
 
 import uuid
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -25,6 +25,11 @@ def list_prefs(db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_curre
 
 @router.put("/{key}")
 def put_pref(key: str, payload: PrefPut, db: Session = Depends(get_db), uid: uuid.UUID = Depends(get_current_user_id)):
+    if len(key) > 64:
+        raise HTTPException(422, "pref key too long")
+    for item in payload.value:
+        if len(item) > 200:
+            raise HTTPException(422, "pref value item too long")
     row = db.get(UserPref, {"user_id": uid, "key": key})
     if row:
         row.value = payload.value
