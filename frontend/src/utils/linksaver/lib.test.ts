@@ -18,4 +18,12 @@ describe("linksaver lib", () => {
     expect(isPlaylistUrl("https://www.youtube.com/watch?v=x&list=PL1")).toBe(true);
     expect(isPlaylistUrl("https://www.youtube.com/watch?v=x")).toBe(false);
   });
+
+  it("handles youtu.be share links with si param (download case)", () => {
+    const share = "https://youtu.be/dQw4w9WgXcQ?si=soOTn3G2tEVN9d6A";
+    expect(detectPlatform(share)).toBe("youtube");
+    expect(isValidMediaUrl(share)).toBe(true);
+    // si= is a share-tracking param, not a playlist — must not be rejected
+    expect(isPlaylistUrl(share)).toBe(false);
+  });
 });

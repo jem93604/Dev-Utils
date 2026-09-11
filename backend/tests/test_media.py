@@ -64,3 +64,64 @@ def test_resolve_single_only_rejects_playlist():
         json={"url": "https://www.youtube.com/watch?v=x&list=PL123"},
     )
     assert r.status_code == 422
+
+
+def test_resolve_youtu_be_share_link_with_si_param(monkeypatch):
+    """Share link https://youtu.be/dQw4w9WgXcQ?si=... must resolve, not 422."""
+    import app.services.media as m
+
+    assert m.detect_platform("https://youtu.be/dQw4w9WgXcQ?si=soOTn3G2tEVN9d6A") == "youtube"
+
+    async def fake_cobalt(url, quality):
+        assert "youtu.be/dQw4w9WgXcQ" in url
+        return {
+            "title": "Rick Astley - Never Gonna Give You Up",
+            "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+            "download_url": "https://cdn/x/dQw4w9WgXcQ.mp4",
+            "formats": [],
+        }
+
+    monkeypatch.setattr(m, "resolve_via_cobalt", fake_cobalt)
+    c = _client()
+    r = c.post(
+        "/api/v1/media/resolve",
+        json={"url": "https://youtu.be/dQw4w9WgXcQ?si=soOTn3G2tEVN9d6A"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["platform"] == "youtube"
+    assert body["source"] == "cobalt"
+    # downloading case: direct URL must be present
+    assert body["download_url"] == "https://cdn/x/dQw4w9WgXcQ.mp4"
+
+
+def test_resolve_youtu_be_share_link_falls_back_to_ytdlp(monkeypatch):
+    """Same share link must fall back to yt-dlp when Cobalt fails."""
+    import app.services.media as m
+
+    async def fail_cobalt(url, quality):
+        assert "youtu.be/dQw4w9WgXcQ" in url
+        raise RuntimeError("cobalt blocked")
+
+    async def fake_ytdlp(url, quality):
+        assert "youtu.be/dQw4w9WgXcQ" in url
+        return {
+            "title": "Rick Astley - Never Gonna Give You Up",
+            "thumbnail": "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
+            "download_url": None,
+            "formats": [{"id": "18", "quality": "360", "ext": "mp4", "url": None}],
+        }
+
+    monkeypatch.setattr(m, "resolve_via_cobalt", fail_cobalt)
+    monkeypatch.setattr(m, "resolve_via_ytdlp", fake_ytdlp)
+    c = _client()
+    r = c.post(
+        "/api/v1/media/resolve",
+        json={"url": "https://youtu.be/dQw4w9WgXcQ?si=soOTn3G2tEVN9d6A"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["platform"] == "youtube"
+    assert body["source"] == "ytdlp"
+    assert body["download_url"] is None
+    assert len(body["formats"]) == 1
