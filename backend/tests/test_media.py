@@ -57,13 +57,27 @@ def test_resolve_falls_back_to_ytdlp(monkeypatch):
     assert r.json()["source"] == "ytdlp"
 
 
-def test_resolve_single_only_rejects_playlist():
+def test_resolve_playlist_url_resolves_single_video(monkeypatch):
+    """Playlist param (list/index) is ignored — resolves the single video."""
+    import app.services.media as m
+
+    async def fake_cobalt(url, quality):
+        assert "v=x" in url
+        assert "list=" not in url
+        return {"title": "t", "thumbnail": "", "download_url": "https://cdn/x.mp4", "formats": []}
+
+    async def fail_ytdlp(url, quality):
+        raise AssertionError("yt-dlp should not be called when cobalt succeeds")
+
+    monkeypatch.setattr(m, "resolve_via_cobalt", fake_cobalt)
+    monkeypatch.setattr(m, "resolve_via_ytdlp", fail_ytdlp)
     c = _client()
     r = c.post(
         "/api/v1/media/resolve",
-        json={"url": "https://www.youtube.com/watch?v=x&list=PL123"},
+        json={"url": "https://www.youtube.com/watch?v=x&list=PL123&index=2"},
     )
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
+    assert r.json()["source"] == "cobalt"
 
 
 def test_resolve_youtu_be_share_link_with_si_param(monkeypatch):

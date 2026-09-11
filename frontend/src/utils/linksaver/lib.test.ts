@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { detectPlatform, isPlaylistUrl, isValidMediaUrl } from "./lib";
+import { detectPlatform, isPlaylistUrl, isValidMediaUrl, stripPlaylistParams } from "./lib";
 
 describe("linksaver lib", () => {
   it("detects youtube/tiktok/x", () => {
@@ -25,5 +25,14 @@ describe("linksaver lib", () => {
     expect(isValidMediaUrl(share)).toBe(true);
     // si= is a share-tracking param, not a playlist — must not be rejected
     expect(isPlaylistUrl(share)).toBe(false);
+  });
+
+  it("strips playlist params so playlist links resolve as single video", () => {
+    const stripped = stripPlaylistParams("https://www.youtube.com/watch?v=x&list=PL1&index=2");
+    expect(stripped).toContain("v=x");
+    expect(stripped).not.toContain("list=");
+    expect(stripped).not.toContain("index=");
+    // si= share-tracking param is preserved
+    expect(stripPlaylistParams("https://youtu.be/dQw4w9WgXcQ?si=abc")).toContain("si=abc");
   });
 });

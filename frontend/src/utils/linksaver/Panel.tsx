@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { detectPlatform, isPlaylistUrl, isValidMediaUrl } from "./lib";
+import { detectPlatform, isValidMediaUrl, stripPlaylistParams } from "./lib";
 import { ErrMsg, UtilShell } from "../ui";
 
 interface Resolved {
@@ -27,16 +27,12 @@ export function LinkSaverPanel() {
       setError("Enter a valid http(s) URL");
       return;
     }
-    if (isPlaylistUrl(url)) {
-      setError("Playlists not supported in v1 — paste a single video URL");
-      return;
-    }
     setLoading(true);
     try {
       const r = await fetch("/api/v1/media/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), quality, audio_only: audioOnly }),
+        body: JSON.stringify({ url: stripPlaylistParams(url), quality, audio_only: audioOnly }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
@@ -54,7 +50,7 @@ export function LinkSaverPanel() {
     <UtilShell id="util-linksaver" color="#38bdf8" title="🔗 Link Saver">
       <p style={{ fontSize: 12, opacity: 0.8 }}>
         Only download public content you have rights to. Respect platform ToS. Cobalt public first,
-        yt-dlp fallback. Single video only, 2GB cap.
+        yt-dlp fallback. Playlist links resolve as a single video, 2GB cap.
       </p>
       <div className="fmt-grid">
         <div className="fmt-col">
