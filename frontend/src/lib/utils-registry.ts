@@ -25,6 +25,7 @@ import { sqlformatUtil } from '../utils/sqlformat';
 import { mockrowsUtil } from '../utils/mockrows';
 import { wherebuilderUtil } from '../utils/wherebuilder';
 import { connstrUtil } from '../utils/connstr';
+import { linksaverUtil } from '../utils/linksaver';
 
 export interface UtilDef {
   slug: string;
@@ -56,6 +57,7 @@ export const ALL_UTILS: UtilModule[] = [
   mockrowsUtil,
   wherebuilderUtil,
   connstrUtil,
+  linksaverUtil,
 ];
 
 export const UTILS: UtilDef[] = ALL_UTILS.map((u) => ({
