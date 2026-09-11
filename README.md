@@ -7,7 +7,7 @@ Query library + developer utilities. FastAPI backend (Postgres-ready, SQLite for
 - **Query library** — sections grouping versioned SQL snippets with `{{variable}}` placeholders, live substitution, copy-with-values, pinning to Home, full-text search across titles, purpose, and SQL.
 - **Notes & Snippets** — sticky-note grid on Home and `/notes`, sort by created/modified/custom drag-drop order.
 - **Script Library** — server script paths with purpose + steps.
-- **14 developer utilities** — Data Formatter, SQL Differ, Time Converter, JSON Formatter, Base64 + URL Codec, JWT Decoder, UUID Generator, Regex Tester, Base Converter, JSON↔YAML, Text Toolkit, Hash Generator (hub at 🧰 Utilities, fuzzy-searchable via `Ctrl+K`).
+- **22 developer utilities** — Data Formatter, SQL Differ, Notes & Snippets, Script Library, Markdown Preview, Time Converter, JSON Formatter, Base64 + URL Codec, JWT Decoder, UUID Generator, Regex Tester, Base Converter, JSON ↔ YAML, Text Toolkit, Hash Generator, Cron Parser, URL Codec, SQL Formatter, Mock Row Generator, WHERE Builder, Connection-String Parser, and Link Saver (hub at 🧰 Utilities, fuzzy-searchable via `Ctrl+K`).
 - **Snapshots** — one-click version snapshots with remark + destructive-restore guard (🕘 Versions).
 - **20 color themes** — picker in the topbar with live preview; add your own in 3 steps (`frontend/THEMES.md`).
 
