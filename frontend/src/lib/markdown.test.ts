@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildHtmlExport, extractMermaidBlocks } from './markdown';
+import { buildHtmlExport, extractMermaidBlocks, normalizeMathDelimiters } from './markdown';
 
 describe('extractMermaidBlocks', () => {
   it('extracts mermaid code fences', () => {
@@ -19,5 +19,29 @@ describe('buildHtmlExport', () => {
     expect(out).toContain('<!doctype html>');
     expect(out).toContain('<h1>Hi</h1>');
     expect(out).toContain('<title>Test</title>');
+  });
+  it('includes katex css for math exports', () => {
+    expect(buildHtmlExport('<p>x</p>')).toContain('katex.min.css');
+  });
+});
+
+describe('normalizeMathDelimiters', () => {
+  it('converts \\( \\) to dollar inline math', () => {
+    expect(normalizeMathDelimiters('Inline math: \\(E = mc^2\\) end')).toContain('$E = mc^2$');
+  });
+  it('converts \\[ \\] to display math', () => {
+    const out = normalizeMathDelimiters('Block:\\n\\[\\n\\\\int_0^1 x^2 dx\\n\\]');
+    expect(out).toContain('$$');
+  });
+  it('leaves fenced code blocks untouched', () => {
+    const src = '```tex\n\\(not math\\)\n```\n\n\\(real\\)';
+    const out = normalizeMathDelimiters(src);
+    expect(out).toContain('\\(not math\\)');
+    expect(out).toContain('$real$');
+  });
+  it('leaves inline code spans untouched', () => {
+    const out = normalizeMathDelimiters('`\\(x\\)` and \\(y\\)');
+    expect(out).toContain('`\\(x\\)`');
+    expect(out).toContain('$y$');
   });
 });
