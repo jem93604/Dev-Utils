@@ -57,13 +57,27 @@ def test_resolve_falls_back_to_ytdlp(monkeypatch):
     assert r.json()["source"] == "ytdlp"
 
 
-def test_resolve_single_only_rejects_playlist():
+def test_resolve_playlist_url_resolves_single_video(monkeypatch):
+    """Playlist param (list/index) is ignored — resolves the single video."""
+    import app.services.media as m
+
+    async def fake_cobalt(url, quality):
+        assert "v=x" in url
+        assert "list=" not in url
+        return {"title": "t", "thumbnail": "", "download_url": "https://cdn/x.mp4", "formats": []}
+
+    async def fail_ytdlp(url, quality):
+        raise AssertionError("yt-dlp should not be called when cobalt succeeds")
+
+    monkeypatch.setattr(m, "resolve_via_cobalt", fake_cobalt)
+    monkeypatch.setattr(m, "resolve_via_ytdlp", fail_ytdlp)
     c = _client()
     r = c.post(
         "/api/v1/media/resolve",
-        json={"url": "https://www.youtube.com/watch?v=x&list=PL123"},
+        json={"url": "https://www.youtube.com/watch?v=x&list=PL123&index=2"},
     )
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
+    assert r.json()["source"] == "cobalt"
 
 
 def test_resolve_includes_backend_download_endpoint(monkeypatch):
@@ -146,11 +160,36 @@ def test_download_rejects_bad_url():
     c = _client()
     r = c.get("/api/v1/media/download", params={"url": "not-a-url"})
     assert r.status_code == 422
+
+
+def test_download_playlist_url_downloads_single_video(monkeypatch, tmp_path):
+    """Playlist param on /download is stripped — downloads the single video."""
+    import app.api.v1.media as api
+
+    f = tmp_path / "vid.mp4"
+    f.write_bytes(b"fake-bytes")
+    d = tmp_path / "work"
+    d.mkdir()
+    seen: dict = {}
+
+    async def fake_dl(url, quality, audio_only):
+        seen["url"] = url
+        return {
+            "path": str(f),
+            "tmpdir": str(d),
+            "filename": "vid.mp4",
+            "media_type": "video/mp4",
+            "size": 10,
+        }
+
+    monkeypatch.setattr(api, "download_media", fake_dl)
+    c = _client()
     r = c.get(
         "/api/v1/media/download",
-        params={"url": "https://www.youtube.com/watch?v=x&list=PL1"},
+        params={"url": "https://www.youtube.com/watch?v=x&list=PL1&index=2"},
     )
-    assert r.status_code == 422
+    assert r.status_code == 200, r.text
+    assert "list=" not in seen["url"]
 
 
 def test_download_surfaces_backend_failure(monkeypatch):

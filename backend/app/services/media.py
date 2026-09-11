@@ -3,7 +3,7 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse, parse_qs
+from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
 
@@ -34,6 +34,16 @@ def detect_platform(url: str) -> str:
 def _is_playlist(url: str) -> bool:
     q = parse_qs(urlparse(url).query)
     return "list" in q
+
+
+def strip_playlist_params(url: str) -> str:
+    """Drop playlist tracking (list/index) so a playlist URL resolves as a single video."""
+    try:
+        p = urlparse(url)
+        q = [(k, v) for k, v in parse_qsl(p.query, keep_blank_values=True) if k not in ("list", "index")]
+        return urlunparse(p._replace(query=urlencode(q)))
+    except Exception:
+        return url
 
 
 async def resolve_via_cobalt(url: str, quality: str, instances: list[str] | None = None) -> dict:

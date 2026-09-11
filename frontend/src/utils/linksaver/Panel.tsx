@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { detectPlatform, isPlaylistUrl, isValidMediaUrl } from "./lib";
+import { detectPlatform, isPlaylistUrl, isValidMediaUrl, stripPlaylistParams } from "./lib";
 import { CopyBtn, UtilShell } from "../ui";
 import { Empty, QTag, toast } from "../../components/ui";
 
@@ -78,10 +78,8 @@ export function LinkSaverPanel() {
       setError("Paste a valid http(s) video URL first.");
       return;
     }
-    if (isPlaylistUrl(url)) {
-      setError("Playlists aren't supported yet — paste a single video URL.");
-      return;
-    }
+    // Playlist URLs fetch as a single video — ignore the list part.
+    const singleUrl = stripPlaylistParams(url);
     setLoading(true);
     try {
       // Single metadata fetch — the response carries every quality/format
@@ -89,7 +87,7 @@ export function LinkSaverPanel() {
       const r = await fetch("/api/v1/media/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), quality: "720", audio_only: false }),
+        body: JSON.stringify({ url: singleUrl, quality: "720", audio_only: false }),
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
@@ -239,8 +237,8 @@ export function LinkSaverPanel() {
 
       <p className="ls-sub">
         Save <b>public videos you have rights to</b> — paste a link, hit Fetch once,
-        then pick any quality below. Cobalt first, yt-dlp fallback. Single videos
-        only, 2&nbsp;GB cap. Respect platform ToS.
+        then pick any quality below. Cobalt first, yt-dlp fallback. Playlist links
+        fetch as a single video, 2&nbsp;GB cap. Respect platform ToS.
       </p>
 
       <form
@@ -283,7 +281,7 @@ export function LinkSaverPanel() {
             valid ? (
               <>
                 Detected: <b>{platformLabel(platform)}</b>
-                {playlist && <span style={{ color: "var(--red)" }}> · playlist-blocked</span>}
+                {playlist && <span style={{ color: "var(--text2)" }}> · playlist → single video</span>}
               </>
             ) : (
               <span style={{ color: "var(--red)" }}>Not a valid http(s) URL</span>

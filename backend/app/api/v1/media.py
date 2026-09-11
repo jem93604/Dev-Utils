@@ -1,4 +1,4 @@
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
@@ -13,6 +13,7 @@ from app.services.media import (
     download_media,
     resolve_media,
     sanitize_filename,
+    strip_playlist_params,
 )
 
 router = APIRouter(tags=["media"])
@@ -29,9 +30,8 @@ async def resolve(payload: MediaResolveRequest):
     p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.hostname:
         raise HTTPException(422, "valid http(s) url required")
-
-    if "list" in parse_qs(p.query):
-        raise HTTPException(422, "playlists not supported in v1 (single video only)")
+    # Playlist URLs resolve as a single video — ignore the list part.
+    url = strip_playlist_params(url)
     try:
         data = await resolve_media(url, payload.quality or "720")
     except HTTPException:
@@ -61,9 +61,8 @@ def _validate_download_url(raw: str) -> str:
     p = urlparse(url)
     if p.scheme not in ("http", "https") or not p.hostname:
         raise HTTPException(422, "valid http(s) url required")
-    if "list" in parse_qs(p.query):
-        raise HTTPException(422, "playlists not supported in v1 (single video only)")
-    return url
+    # Playlist URLs download as a single video — ignore the list part.
+    return strip_playlist_params(url)
 
 
 @router.get("/media/download")
