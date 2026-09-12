@@ -16,6 +16,7 @@ import {
   pickAutoQuality,
   resolveBatchQualityMode,
   savingsPct,
+  shouldKeepOriginal,
   validateImageFile,
 } from './lib';
 
@@ -198,5 +199,12 @@ describe('batch quality helpers', () => {
       { id: 'e', status: 'done', origUrl: 'u5', outMime: 'image/webp' },
     ]);
     expect(ids).toEqual(['a', 'e']);
+  });
+
+  it('keeps the original when a same-size PNG re-encode grows', () => {
+    expect(shouldKeepOriginal(1000, 1200, false)).toBe(true);
+    expect(shouldKeepOriginal(1000, 1000, false)).toBe(true);
+    expect(shouldKeepOriginal(1000, 900, false)).toBe(false);
+    expect(shouldKeepOriginal(1000, 5000, true)).toBe(false);
   });
 });

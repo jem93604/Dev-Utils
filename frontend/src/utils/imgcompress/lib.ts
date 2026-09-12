@@ -208,3 +208,13 @@ export function batchQualityTargets(
     .filter((f) => f.status !== 'working' && f.origUrl && f.outMime !== 'image/png')
     .map((f) => f.id);
 }
+
+/**
+ * Canvas PNG re-encode drops the source file's optimizer work and often comes
+ * out larger. When dimensions are unchanged and the encode grew, the caller
+ * should keep the original file instead. JPEG/WebP always go through quality
+ * control so they never hit this path.
+ */
+export function shouldKeepOriginal(origBytes: number, outBytes: number, dimsChanged: boolean): boolean {
+  return !dimsChanged && outBytes >= origBytes;
+}

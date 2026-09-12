@@ -18,6 +18,7 @@ import {
   mimeForFormat,
   pickAutoQuality,
   savingsPct,
+  shouldKeepOriginal,
   validateImageFile,
   type OutputFormat,
   type ResizeMode,
@@ -183,9 +184,25 @@ export function ImgCompressPanel() {
 
       const outName = buildOutputFilename(item.file.name, outMime);
       const base = { origW: srcW, origH: srcH, outW: tw, outH: th, outName, outMime };
+      const sameDims = tw === srcW && th === srcH;
 
       if (outMime === 'image/png') {
         const blob = await encode(canvas, outMime);
+        // Canvas PNG re-encode drops the original file's optimizer work, so it
+        // often comes out LARGER. If dims didn't change and we grew, keep the
+        // original file — "no change" beats negative compression. Own object
+        // URL (not shared with origUrl) so revoke logic stays correct.
+        if (shouldKeepOriginal(item.file.size, blob.size, !sameDims)) {
+          return {
+            ...base,
+            status: 'done' as const,
+            outBytes: item.file.size,
+            outUrl: URL.createObjectURL(item.file),
+            outBlob: item.file,
+            qualityLabel: 'kept original (re-encode was larger)',
+            note: 'PNG re-encode came out larger — original kept. Convert to WebP/JPEG to actually shrink it.',
+          };
+        }
         return {
           ...base,
           status: 'done' as const,
