@@ -76,6 +76,10 @@ interface Settings {
   psnrDb: number;
   /** Bulk rename pattern ({name} {i} {w} {h} {ext}), empty = default names. */
   renamePattern: string;
+  /** Per-card section visibility (declutter cards). */
+  showFileControls: boolean;
+  showTuner: boolean;
+  showActions: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -88,6 +92,9 @@ const DEFAULTS: Settings = {
   psnrGuard: true,
   psnrDb: 35,
   renamePattern: '',
+  showFileControls: true,
+  showTuner: true,
+  showActions: true,
   format: 'keep',
   auto: true,
   manualQ: 0.8,
@@ -927,7 +934,41 @@ export function ImgCompressPanel() {
             <input className="input-field" value={s.renamePattern} placeholder="hero-{i}-{w}x{h}"
               onChange={(e) => set('renamePattern', e.target.value)} style={{ width: '100%' }} spellCheck={false} />
           </Field>
-          <div style={hintStyle}>Tokens: {'{name} {i} {w} {h} {ext}'}. Empty = default names.</div>
+          <div style={hintStyle}>
+            Tokens: {'{name} {i} {w} {h} {ext}'}. Empty = default names.
+            {' '}e.g. pattern <code style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>hero-{'{i}'}-{'{w}'}x{'{h}'}</code>
+            {' '}→ <code style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>hero-1-1920x1080.webp</code>
+            {s.renamePattern.trim() && (
+              <>
+                {' '}· yours now: <code style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--amber-dim)', color: 'var(--amber)', borderRadius: 4, padding: '0 5px' }}>
+                  {(() => {
+                    try {
+                      return applyRenamePattern(s.renamePattern, 0, items[0]?.file.name ?? 'photo.png', mimeForFormat(items[0]?.file.type ?? 'image/png', s.format), items[0]?.outW ?? 1920, items[0]?.outH ?? 1080);
+                    } catch {
+                      return '(invalid pattern)';
+                    }
+                  })()}
+                </code>
+              </>
+            )}
+          </div>
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+            5 · Card controls
+          </div>
+          {([
+            ['showFileControls', 'This-file overrides (dims + format)'],
+            ['showTuner', 'Quality tuner slider'],
+            ['showActions', 'Action buttons (download / compare / copy)'],
+          ] as const).map(([key, label]) => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem', marginBottom: 4 }}>
+              <input type="checkbox" checked={s[key]} onChange={(e) => set(key, e.target.checked)} />
+              {label}
+            </label>
+          ))}
+          <div style={hintStyle}>Hide per-card sections to declutter results. Thumbnails + stats always show.</div>
         </div>
       </div>
 
@@ -1108,7 +1149,7 @@ export function ImgCompressPanel() {
                     </div>
                     {it.note && <div style={{ fontSize: '.7rem', color: 'var(--amber)', marginTop: 4 }}>{it.note}</div>}
                     {/* Per-file overrides: dimensions + format */}
-                    {done && (
+                    {done && s.showFileControls && (
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                           <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
@@ -1176,7 +1217,7 @@ export function ImgCompressPanel() {
                       </div>
                     )}
                     {/* Quality tuner (JPEG/WebP only) */}
-                    {done && it.outMime !== 'image/png' && (
+                    {done && s.showTuner && it.outMime !== 'image/png' && (
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
@@ -1215,7 +1256,7 @@ export function ImgCompressPanel() {
                         </div>
                       </div>
                     )}
-                    {done && (
+                    {done && s.showActions && (
                       <div className="fmt-btns" style={{ marginTop: 8 }}>
                         <a className="fmt-btn" href={it.outUrl} download={it.outName} style={{ textDecoration: 'none' }}>
                           ⬇ Download
