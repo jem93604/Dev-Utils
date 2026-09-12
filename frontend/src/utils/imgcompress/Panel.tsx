@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
-import { Empty, Field, Modal } from '../../components/ui';
+import { Empty, Field, Modal, toast } from '../../components/ui';
 import { ErrMsg, UtilShell } from '../ui';
 import {
   AUTO_QUALITY_STEPS,
@@ -36,6 +36,13 @@ interface Item {
   qualityLabel?: string;
   note?: string;
   outName?: string;
+  outMime?: string;
+  outBlob?: Blob;
+  /** Effective encode quality (auto-picked, manual, target-found, or custom). */
+  effQ?: number;
+  /** Per-card tuner override (null = follow batch settings). */
+  customQ?: number;
+  tuning?: boolean;
 }
 
 interface Settings {
@@ -147,7 +154,7 @@ export function ImgCompressPanel() {
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) =>
     setSettings((s) => ({ ...s, [k]: v }));
 
-  const processOne = useCallback(async (item: Item, s: Settings): Promise<Partial<Item>> => {
+  const processOne = useCallback(async (item: Item, s: Settings, qualityOverride?: number): Promise<Partial<Item>> => {
     let bitmap: ImageBitmap | null = null;
     try {
       bitmap = await createImageBitmap(item.file);
@@ -173,7 +180,7 @@ export function ImgCompressPanel() {
       ctx.drawImage(bitmap, 0, 0, tw, th);
 
       const outName = buildOutputFilename(item.file.name, outMime);
-      const base = { origW: srcW, origH: srcH, outW: tw, outH: th, outName };
+      const base = { origW: srcW, origH: srcH, outW: tw, outH: th, outName, outMime };
 
       if (outMime === 'image/png') {
         const blob = await encode(canvas, outMime);
@@ -182,6 +189,7 @@ export function ImgCompressPanel() {
           status: 'done' as const,
           outBytes: blob.size,
           outUrl: URL.createObjectURL(blob),
+          outBlob: blob,
           qualityLabel: 'lossless (PNG)',
           note: s.targetOn ? 'Target-KB needs JPEG/WebP — PNG is lossless, resized only.' : undefined,
         };
@@ -211,6 +219,8 @@ export function ImgCompressPanel() {
             status: 'done' as const,
             outBytes: blob.size,
             outUrl: URL.createObjectURL(blob),
+            outBlob: blob,
+            effQ: TARGET_MIN_Q,
             qualityLabel: `q${TARGET_MIN_Q.toFixed(2)} (missed ≤${s.targetKb} KB)`,
             note: `Even lowest quality is ${formatBytes(blob.size)} — target missed. Try smaller dimensions or WebP.`,
           };
@@ -220,7 +230,23 @@ export function ImgCompressPanel() {
           status: 'done' as const,
           outBytes: best.size,
           outUrl: URL.createObjectURL(best),
+          outBlob: best,
+          effQ: bestQ,
           qualityLabel: `q${bestQ.toFixed(2)} (≤${s.targetKb} KB)`,
+        };
+      }
+
+      // Per-card quality tuner overrides batch quality (single encode at chosen q).
+      if (qualityOverride != null) {
+        const blob = await encode(canvas, outMime, qualityOverride);
+        return {
+          ...base,
+          status: 'done' as const,
+          outBytes: blob.size,
+          outUrl: URL.createObjectURL(blob),
+          outBlob: blob,
+          effQ: qualityOverride,
+          qualityLabel: `custom q${qualityOverride.toFixed(2)}`,
         };
       }
 
@@ -239,6 +265,8 @@ export function ImgCompressPanel() {
           status: 'done' as const,
           outBytes: blob.size,
           outUrl: URL.createObjectURL(blob),
+          outBlob: blob,
+          effQ: picked,
           qualityLabel: `auto q${picked.toFixed(2)}`,
         };
       }
@@ -249,6 +277,8 @@ export function ImgCompressPanel() {
         status: 'done' as const,
         outBytes: blob.size,
         outUrl: URL.createObjectURL(blob),
+        outBlob: blob,
+        effQ: s.manualQ,
         qualityLabel: `q${s.manualQ.toFixed(2)}`,
       };
     } catch (e) {
@@ -263,7 +293,7 @@ export function ImgCompressPanel() {
       setBusy(true);
       setGlobalErr(undefined);
       for (const it of list) {
-        const patch = await processOne(it, s);
+        const patch = await processOne(it, s, it.customQ ?? undefined);
         if (patch.outUrl) {
           setItems((prev) => {
             const old = prev.find((p) => p.id === it.id);
@@ -325,10 +355,104 @@ export function ImgCompressPanel() {
   const recompress = () => {
     const ok = items.filter((i) => i.status !== 'error' || i.origUrl);
     for (const it of ok) if (it.outUrl) URL.revokeObjectURL(it.outUrl);
-    const reset = ok.map((i) => ({ ...i, status: 'working' as const, error: undefined, outUrl: undefined, note: undefined }));
+    const reset = ok.map((i) => ({ ...i, status: 'working' as const, error: undefined, outUrl: undefined, outBlob: undefined, note: undefined }));
     setItems((prev) => prev.map((p) => reset.find((r) => r.id === p.id) ?? p));
     void runItems(reset, settings);
   };
+
+  /** Per-card quality tuner: re-encode just this file at a chosen quality. */
+  const tuneQuality = async (id: string, q: number) => {
+    const target = items.find((i) => i.id === id);
+    if (!target || target.status === 'working') return;
+    setItems((prev) =>
+      prev.map((p) => (p.id === id ? { ...p, tuning: true, customQ: q } : p)),
+    );
+    try {
+      const patch = await processOne(
+        { ...target, customQ: q },
+        settingsRef.current,
+        // PNG ignores quality — leave those on the standard path.
+        target.outMime === 'image/png' ? undefined : q,
+      );
+      if (patch.outUrl && target.outUrl) URL.revokeObjectURL(target.outUrl);
+      setItems((prev) => prev.map((p) => (p.id === id ? { ...p, ...patch, tuning: false } : p)));
+    } catch (e) {
+      setItems((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, tuning: false, error: e instanceof Error ? e.message : 'Tune failed' }
+            : p,
+        ),
+      );
+    }
+  };
+
+  /** Reset a card to batch settings. */
+  const resetTune = (id: string) => {
+    const target = items.find((i) => i.id === id);
+    if (!target) return;
+    setItems((prev) =>
+      prev.map((p) =>
+        p.id === id ? { ...p, customQ: undefined, status: 'working' as const, tuning: false } : p,
+      ),
+    );
+    if (target.outUrl) URL.revokeObjectURL(target.outUrl);
+    void runItems(
+      [{ ...target, customQ: undefined, status: 'working' as const }],
+      settingsRef.current,
+    );
+  };
+
+  const copyText = async (text: string, label: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(`${label} ✓`);
+    } catch {
+      setGlobalErr('Clipboard blocked — allow clipboard access and retry.');
+    }
+  };
+
+  const blobToDataUri = (blob: Blob): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = () => reject(new Error('Data-URI read failed'));
+      r.readAsDataURL(blob);
+    });
+
+  const copyDataUri = async (it: Item) => {
+    if (!it.outBlob || !it.outMime) return;
+    try {
+      const uri = await blobToDataUri(it.outBlob);
+      await copyText(uri, 'Data-URI copied');
+    } catch (e) {
+      setGlobalErr(e instanceof Error ? e.message : 'Copy failed');
+    }
+  };
+
+  const copyImgTag = async (it: Item) => {
+    if (!it.outBlob || !it.outMime) return;
+    try {
+      const uri = await blobToDataUri(it.outBlob);
+      const tag = `<img src="${uri}" width="${it.outW ?? ''}" height="${it.outH ?? ''}" alt="${it.outName ?? 'image'}" />`;
+      await copyText(tag, '<img> snippet copied');
+    } catch (e) {
+      setGlobalErr(e instanceof Error ? e.message : 'Copy failed');
+    }
+  };
+
+  // Paste screenshots straight in (Ctrl+V anywhere in the panel).
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith('image/'));
+      if (files.length > 0) {
+        e.preventDefault();
+        void addFiles(files);
+      }
+    };
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [addFiles]);
 
   const removeItem = (id: string) => {
     const it = items.find((i) => i.id === id);
@@ -365,9 +489,11 @@ export function ImgCompressPanel() {
 
   const s = settings;
   const qualityDisabled = s.targetOn;
-  const [pvTab, setPvTab] = useState<'before' | 'after' | 'split'>('split');
+  const [pvTab, setPvTab] = useState<'before' | 'after' | 'compare'>('compare');
+  const [sliderPos, setSliderPos] = useState(50);
   const openPreview = (id: string, side: 'before' | 'after') => {
-    setPvTab(side);
+    setPvTab('compare');
+    setSliderPos(50);
     setPreview({ id, side });
   };
   const doneItems = items.filter((i) => i.status === 'done' && i.outUrl && i.outBytes != null);
@@ -413,7 +539,7 @@ export function ImgCompressPanel() {
           {items.length === 0 ? 'Drop images here or click to browse' : 'Drop more images or click to add'}
         </div>
         <div style={{ fontSize: '.73rem', color: 'var(--text2)', marginTop: 2 }}>
-          PNG · JPEG · WebP — up to {MAX_FILES} files per batch
+          PNG · JPEG · WebP — up to {MAX_FILES} files per batch · <kbd style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>Ctrl+V</kbd> pastes screenshots
         </div>
         <input
           ref={fileRef}
@@ -711,6 +837,46 @@ export function ImgCompressPanel() {
                       {it.qualityLabel && <span title="Encode quality">⚙️ {it.qualityLabel}</span>}
                     </div>
                     {it.note && <div style={{ fontSize: '.7rem', color: 'var(--amber)', marginTop: 4 }}>{it.note}</div>}
+                    {/* Quality tuner (JPEG/WebP only) */}
+                    {done && it.outMime !== 'image/png' && (
+                      <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                            Tune
+                          </span>
+                          <input
+                            type="range"
+                            min={0.05}
+                            max={1}
+                            step={0.01}
+                            value={it.customQ ?? it.effQ ?? 0.8}
+                            disabled={it.tuning || it.status === 'working'}
+                            onChange={(e) => {
+                              const q = Number(e.target.value);
+                              setItems((prev) => prev.map((p) => (p.id === it.id ? { ...p, customQ: q } : p)));
+                            }}
+                            onMouseUp={(e) => void tuneQuality(it.id, Number((e.target as HTMLInputElement).value))}
+                            onTouchEnd={(e) => void tuneQuality(it.id, Number((e.target as HTMLInputElement).value))}
+                            style={{ flex: 1 }}
+                          />
+                          <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '.72rem', minWidth: 40, textAlign: 'right' }}>
+                            {it.tuning ? '…' : `q${(it.customQ ?? it.effQ ?? 0.8).toFixed(2)}`}
+                          </span>
+                          {it.customQ != null && (
+                            <button className="fmt-btn" onClick={() => resetTune(it.id)} title="Back to batch settings" style={{ padding: '2px 8px' }}>
+                              ↺
+                            </button>
+                          )}
+                        </div>
+                        <div style={hintStyle}>
+                          {it.tuning
+                            ? 'Re-encoding…'
+                            : it.customQ != null
+                              ? 'Custom quality — release slider to apply, ↺ to reset to batch.'
+                              : `Batch quality ${it.qualityLabel ?? ''} — drag to override this file.`}
+                        </div>
+                      </div>
+                    )}
                     {done && (
                       <div className="fmt-btns" style={{ marginTop: 8 }}>
                         <a className="fmt-btn" href={it.outUrl} download={it.outName} style={{ textDecoration: 'none' }}>
@@ -718,6 +884,12 @@ export function ImgCompressPanel() {
                         </a>
                         <button className="fmt-btn" onClick={() => openPreview(it.id, 'after')}>
                           ⤢ Compare
+                        </button>
+                        <button className="fmt-btn" onClick={() => void copyDataUri(it)} title="Copy output as data: URI">
+                          ⎘ Data-URI
+                        </button>
+                        <button className="fmt-btn" onClick={() => void copyImgTag(it)} title="Copy <img> embed snippet">
+                          ⎘ &lt;img&gt;
                         </button>
                       </div>
                     )}
@@ -753,31 +925,103 @@ export function ImgCompressPanel() {
             {previewItem.status === 'done' && previewItem.outUrl ? (
               <>
                 <div className="fmt-btns" style={{ marginTop: 0, marginBottom: 10 }}>
-                  {(['before', 'after', 'split'] as const).map((t) => (
+                  {(['before', 'after', 'compare'] as const).map((t) => (
                     <button
                       key={t}
                       className="fmt-btn"
                       onClick={() => setPvTab(t)}
                       style={pvTab === t ? { borderColor: 'var(--amber)', color: 'var(--amber)' } : undefined}
                     >
-                      {t === 'before' ? 'Before' : t === 'after' ? 'After' : 'Side-by-side'}
+                      {t === 'before' ? 'Before' : t === 'after' ? 'After' : '⇔ Compare slider'}
                     </button>
                   ))}
                 </div>
-                {pvTab === 'split' ? (
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-                    {[
-                      { label: 'Before', url: previewItem.origUrl },
-                      { label: 'After', url: previewItem.outUrl },
-                    ].map(({ label, url }) => (
-                      <div key={label}>
-                        <div style={thumbLabelStyle}>{label}</div>
-                        <div style={{ ...checkerStyle, maxHeight: '60vh', overflow: 'auto' }}>
-                          <img src={url} alt={`${label} full size`} style={{ width: '100%', display: 'block' }} />
+                {pvTab === 'compare' ? (
+                  <>
+                    <div
+                      style={{
+                        ...checkerStyle,
+                        position: 'relative',
+                        maxHeight: '65vh',
+                        overflow: 'hidden',
+                        userSelect: 'none',
+                        touchAction: 'none',
+                        cursor: 'ew-resize',
+                      }}
+                      onPointerDown={(e) => {
+                        const el = e.currentTarget;
+                        const move = (ev: PointerEvent) => {
+                          const r = el.getBoundingClientRect();
+                          setSliderPos(Math.min(100, Math.max(0, ((ev.clientX - r.left) / r.width) * 100)));
+                        };
+                        move(e.nativeEvent);
+                        const up = () => {
+                          window.removeEventListener('pointermove', move);
+                          window.removeEventListener('pointerup', up);
+                        };
+                        window.addEventListener('pointermove', move);
+                        window.addEventListener('pointerup', up);
+                      }}
+                    >
+                      <img src={previewItem.outUrl} alt="after full size" style={{ width: '100%', display: 'block' }} draggable={false} />
+                      <div
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          overflow: 'hidden',
+                          width: `${sliderPos}%`,
+                          borderRight: '2px solid var(--amber)',
+                        }}
+                      >
+                        <div style={{ width: `${sliderPos === 0 ? 100 : 10000 / sliderPos}%`, maxWidth: 'none' }}>
+                          <img src={previewItem.origUrl} alt="before full size" style={{ width: '100%', display: 'block' }} draggable={false} />
                         </div>
                       </div>
-                    ))}
-                  </div>
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          bottom: 0,
+                          left: `${sliderPos}%`,
+                          width: 0,
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: 0,
+                            transform: 'translate(-50%,-50%)',
+                            background: 'var(--amber)',
+                            color: '#000',
+                            borderRadius: '50%',
+                            width: 34,
+                            height: 34,
+                            display: 'grid',
+                            placeItems: 'center',
+                            fontSize: '.9rem',
+                            fontWeight: 800,
+                            boxShadow: '0 2px 10px rgba(0,0,0,.5)',
+                          }}
+                        >
+                          ⇔
+                        </div>
+                      </div>
+                      <span style={{ ...zoomBadgeStyle, left: 6, right: 'auto' }}>before</span>
+                      <span style={zoomBadgeStyle}>after</span>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      step={0.5}
+                      value={sliderPos}
+                      onChange={(e) => setSliderPos(Number(e.target.value))}
+                      style={{ width: '100%', marginTop: 8 }}
+                      aria-label="Compare position"
+                    />
+                  </>
                 ) : (
                   <div style={{ ...checkerStyle, maxHeight: '65vh', overflow: 'auto' }}>
                     <img
