@@ -83,11 +83,11 @@ export function useStats(): Stats {
 
 export function useNotes(sort: NoteSort = 'created') {
   const [data, setData] = useState<Note[]>([]);
-  useEffect(() => {
-    let alive = true;
-    getNotes(sort).then((n) => { if (alive) setData(n); }).catch(() => { if (alive) setData([]); });
-    return () => { alive = false; };
+  const load = useCallback(() => {
+    getNotes(sort).then(setData).catch(() => setData([]));
   }, [sort]);
+  useEffect(() => { load(); }, [load]);
+  useContentListener(load);
   return [data, setData] as const;
 }
 

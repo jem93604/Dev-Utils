@@ -522,10 +522,14 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   border-radius: 8px;
   padding: 0;
   box-shadow: 0 2px 8px rgba(0,0,0,.15);
-  transition: all 0.25s ease;
+  transition: box-shadow 0.25s ease, border-color 0.25s ease;
   overflow: hidden;
   width: 100%;
   min-height: 60px;
+}
+
+.note-card:hover {
+  border-color: var(--border2);
 }
 
 .note-card.collapsed {
@@ -533,10 +537,17 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   min-height: 60px;
 }
 
-.note-card:not(.collapsed) {
+.note-card.open {
   min-height: unset;
   height: auto;
   box-shadow: 0 4px 20px rgba(0,0,0,.2);
+}
+
+.notes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 10px;
+  align-items: start;
 }
 
 .note-head {
@@ -547,7 +558,13 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
   user-select: none;
+}
+
+.note-head:focus-visible {
+  outline: 2px solid var(--amber);
+  outline-offset: -2px;
 }
 
 .note-title-text {
@@ -558,11 +575,8 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
 
 .note-body {
   padding: 12px 14px;
-  display: none;
-}
-
-.note-card:not(.collapsed) .note-body {
   display: block;
+  cursor: pointer;
 }
 
 .note-content {
@@ -572,6 +586,22 @@ body{font-family:'Syne',sans-serif;background:var(--bg);color:var(--text);displa
   font-family: 'JetBrains Mono', monospace;
   line-height: 1.65;
   overflow: visible;
+  word-break: break-word;
+}
+
+/* Collapsed cards show a 3-line excerpt; expanded cards show the full text. */
+.note-card.collapsed .note-excerpt {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: normal;
+}
+
+.note-empty {
+  font-size: .75rem;
+  color: var(--text3);
+  font-style: italic;
 }
 
 .note-date {
