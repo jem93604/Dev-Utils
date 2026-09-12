@@ -197,15 +197,15 @@ export function clampQuality(q: number): number {
 }
 
 /**
- * Decide which files a batch-quality apply touches: skips files still
- * working, errored files without a source URL, and PNG outputs (lossless —
- * quality has no effect). Returns the ids to re-encode.
+ * Decide which files a batch-quality apply touches: only finished files —
+ * working, errored, skipped, and PNG outputs are left alone. Returns the ids
+ * to re-encode.
  */
 export function batchQualityTargets(
   files: Array<{ id: string; status: string; origUrl: string; outMime?: string }>,
 ): string[] {
   return files
-    .filter((f) => f.status !== 'working' && f.origUrl && f.outMime !== 'image/png')
+    .filter((f) => f.status === 'done' && f.origUrl && f.outMime !== 'image/png')
     .map((f) => f.id);
 }
 
@@ -278,4 +278,58 @@ export function applyRenamePattern(
   name = name.replace(/[\\/]/g, '-').trim() || fallbackBase;
   if (name.includes('{ext}')) return name.replaceAll('{ext}', extForMime(outMime).slice(1));
   return `${name}${extForMime(outMime)}`;
+}
+
+/** Parallel encode lanes for the worker pool (bounded: more lanes = more RAM). */
+export const ENCODE_LANES = 3;
+
+/**
+ * FNV-1a 32-bit hex of raw bytes. Sync + dependency-free so hashing never
+ * blocks on crypto.subtle; collisions are irrelevant for batch-duplicate
+ * detection (same-size prefilter first).
+ */
+export function hashBytes(bytes: ArrayLike<number>): string {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) {
+    h ^= bytes[i] & 0xff;
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
+}
+
+/** Identity key for duplicate detection: type + size + content hash. */
+export function dedupeKey(type: string, size: number, hash: string): string {
+  return `${type}|${size}|${hash}`;
+}
+
+/**
+ * Split new-file hashes against the batch: returns ids of incoming files
+ * that duplicate an existing item OR an earlier file in the same drop.
+ * Pure — hashing itself lives in the Panel (needs File bytes).
+ */
+export function findDuplicateIds(
+  existingKeys: Set<string>,
+  incoming: Array<{ id: string; key: string }>,
+): Set<string> {
+  const seen = new Set(existingKeys);
+  const dups = new Set<string>();
+  for (const f of incoming) {
+    if (seen.has(f.key)) dups.add(f.id);
+    else seen.add(f.key);
+  }
+  return dups;
+}
+
+/**
+ * Partition a list into at most `lanes` round-robin chunks for parallel
+ * workers. Preserves overall order when chunks are drained per-lane in
+ * sequence and results merged by index.
+ */
+export function poolChunks<T>(list: T[], lanes: number): T[][] {
+  const n = Math.max(1, Math.floor(lanes));
+  const out: T[][] = Array.from({ length: Math.min(n, list.length) }, () => []);
+  list.forEach((item, i) => {
+    out[i % out.length].push(item);
+  });
+  return out;
 }

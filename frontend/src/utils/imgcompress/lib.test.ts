@@ -10,10 +10,14 @@ import {
   computeExactSize,
   computeFitSize,
   computeScaleSize,
+  dedupeKey,
   describeSettings,
+  findDuplicateIds,
   formatBytes,
+  hashBytes,
   mimeForFormat,
   pickAutoQuality,
+  poolChunks,
   resolveBatchQualityMode,
   savingsPct,
   shouldKeepOriginal,
@@ -256,5 +260,41 @@ describe('bulk rename', () => {
     );
     expect(renameDateStamp(new Date(2026, 8, 12))).toBe('20260912');
     expect(applyRenamePattern('{date}', 0, 'x.png', 'image/png')).toMatch(/^\d{8}\.png$/);
+  });
+});
+
+describe('hash dedupe', () => {
+  it('hashes bytes deterministically as 8-hex', () => {
+    expect(hashBytes([1, 2, 3])).toBe(hashBytes([1, 2, 3]));
+    expect(hashBytes([1, 2, 3])).toMatch(/^[0-9a-f]{8}$/);
+    expect(hashBytes([1, 2, 4])).not.toBe(hashBytes([1, 2, 3]));
+  });
+
+  it('builds stable dedupe keys', () => {
+    expect(dedupeKey('image/png', 10, 'ab12')).toBe('image/png|10|ab12');
+    expect(dedupeKey('image/png', 10, 'ab12')).not.toBe(dedupeKey('image/jpeg', 10, 'ab12'));
+  });
+
+  it('flags dups against batch and within the same drop', () => {
+    const existing = new Set([dedupeKey('image/png', 5, 'h1')]);
+    const dups = findDuplicateIds(existing, [
+      { id: 'a', key: dedupeKey('image/png', 5, 'h1') },
+      { id: 'b', key: dedupeKey('image/png', 5, 'h2') },
+      { id: 'c', key: dedupeKey('image/png', 5, 'h2') },
+      { id: 'd', key: dedupeKey('image/jpeg', 5, 'h2') },
+    ]);
+    expect([...dups].sort()).toEqual(['a', 'c']);
+  });
+});
+
+describe('worker pool', () => {
+  it('partitions round-robin preserving coverage', () => {
+    expect(poolChunks([1, 2, 3, 4, 5], 2)).toEqual([[1, 3, 5], [2, 4]]);
+    expect(poolChunks([1], 3)).toEqual([[1]]);
+    expect(poolChunks([], 3)).toEqual([]);
+    expect(poolChunks([1, 2], 0)).toEqual([[1, 2]]);
+    const chunks = poolChunks([1, 2, 3, 4, 5, 6, 7], 3);
+    expect(chunks).toHaveLength(3);
+    expect(chunks.flat().sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7]);
   });
 });
