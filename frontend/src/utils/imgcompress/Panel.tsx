@@ -7,6 +7,8 @@ import {
   TARGET_MAX_Q,
   TARGET_MIN_Q,
   TARGET_STEPS,
+  batchQualityLabel,
+  batchQualityTargets,
   buildOutputFilename,
   computeExactSize,
   computeFitSize,
@@ -387,6 +389,23 @@ export function ImgCompressPanel() {
     }
   };
 
+  /** Batch quality slider: re-encode every eligible file at one quality. */
+  const applyBatchQuality = async (q: number) => {
+    setSettings((prev) => ({ ...prev, auto: false, targetOn: false, manualQ: q }));
+    const ids = batchQualityTargets(
+      itemsRef.current.map((i) => ({ id: i.id, status: i.status, origUrl: i.origUrl, outMime: i.outMime })),
+    );
+    if (ids.length === 0) return;
+    const s = { ...settingsRef.current, auto: false, targetOn: false, manualQ: q };
+    settingsRef.current = s;
+    await runItems(
+      itemsRef.current
+        .filter((i) => ids.includes(i.id))
+        .map((i) => ({ ...i, customQ: undefined, status: 'working' as const, tuning: false })),
+      s,
+    );
+  };
+
   /** Reset a card to batch settings. */
   const resetTune = (id: string) => {
     const target = items.find((i) => i.id === id);
@@ -489,6 +508,7 @@ export function ImgCompressPanel() {
 
   const s = settings;
   const qualityDisabled = s.targetOn;
+  const [batchQ, setBatchQ] = useState(s.manualQ);
   const [pvTab, setPvTab] = useState<'before' | 'after' | 'compare'>('compare');
   const [sliderPos, setSliderPos] = useState(50);
   const openPreview = (id: string, side: 'before' | 'after') => {
@@ -667,16 +687,36 @@ export function ImgCompressPanel() {
               onChange={(e) => set('auto', e.target.checked)} /> Auto-quality
           </label>
           <div style={hintStyle}>Sweeps qualities, keeps max compression with minimal visual change.</div>
-          {!s.auto && !qualityDisabled && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
-              <input type="range" min={0.05} max={1} step={0.01} value={s.manualQ}
-                onChange={(e) => set('manualQ', Number(e.target.value))} style={{ flex: 1 }} />
+          <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+            <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', marginBottom: 6 }}>
+              Batch quality
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <input
+                type="range"
+                min={0.05}
+                max={1}
+                step={0.01}
+                value={batchQ}
+                disabled={qualityDisabled || busy}
+                onChange={(e) => setBatchQ(Number(e.target.value))}
+                onPointerUp={(e) => void applyBatchQuality(Number((e.target as HTMLInputElement).value))}
+                onKeyUp={(e) => {
+                  if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') void applyBatchQuality(batchQ);
+                }}
+                style={{ flex: 1 }}
+                aria-label="Batch quality for all files"
+              />
               <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '.78rem', minWidth: 44, textAlign: 'right' }}>
-                q{s.manualQ.toFixed(2)}
+                q{batchQ.toFixed(2)}
               </span>
             </div>
-          )}
-          {qualityDisabled && <div style={hintStyle}>Overridden by Target-KB mode.</div>}
+            <div style={hintStyle}>
+              {qualityDisabled
+                ? 'Overridden by Target-KB mode — turn it off to use this.'
+                : 'Drag to re-encode the whole batch at one quality. Active path: ' + batchQualityLabel({ auto: s.auto, manualQ: s.manualQ, targetOn: s.targetOn, targetKb: s.targetKb }) + '.'}
+            </div>
+          </div>
           {s.format === 'png' && <div style={hintStyle}>PNG is lossless — quality does not apply (resize only).</div>}
         </div>
 
@@ -702,17 +742,55 @@ export function ImgCompressPanel() {
         </div>
       </div>
 
-      <div className="fmt-btns" style={{ margin: '12px 0 4px' }}>
-        <button className="fmt-btn" onClick={recompress} disabled={busy || items.length === 0}>
-          {busy ? 'Working…' : '↻ Recompress with current settings'}
-        </button>
-        <button className="fmt-btn" onClick={downloadAll} disabled={items.every((i) => i.status !== 'done')}>
-          ⬇ Download all
-        </button>
-        <button className="fmt-btn" onClick={clearAll} disabled={items.length === 0}>✕ Clear</button>
-        <span style={{ fontSize: '.73rem', color: 'var(--text2)', alignSelf: 'center' }}>{summary}</span>
-      </div>
+      <div style={{ fontSize: '.73rem', color: 'var(--text2)', marginTop: 8 }}>{summary}</div>
       <ErrMsg msg={globalErr} />
+
+      {/* Batch bar: actions + batch quality shortcut */}
+      {items.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 10,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            background: 'var(--bg)',
+            padding: '8px 12px',
+            marginTop: 10,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 220px', minWidth: 200 }}>
+            <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', whiteSpace: 'nowrap' }}>
+              Batch q
+            </span>
+            <input
+              type="range"
+              min={0.05}
+              max={1}
+              step={0.01}
+              value={batchQ}
+              disabled={qualityDisabled || busy}
+              onChange={(e) => setBatchQ(Number(e.target.value))}
+              onPointerUp={(e) => void applyBatchQuality(Number((e.target as HTMLInputElement).value))}
+              style={{ flex: 1 }}
+              aria-label="Batch quality for all files"
+            />
+            <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '.75rem', minWidth: 40 }}>
+              q{batchQ.toFixed(2)}
+            </span>
+          </div>
+          <div className="fmt-btns" style={{ marginTop: 0 }}>
+            <button className="fmt-btn" onClick={recompress} disabled={busy}>
+              {busy ? 'Working…' : '↻ Recompress'}
+            </button>
+            <button className="fmt-btn" onClick={downloadAll} disabled={items.every((i) => i.status !== 'done')}>
+              ⬇ Download all
+            </button>
+            <button className="fmt-btn" onClick={clearAll}>✕ Clear</button>
+          </div>
+        </div>
+      )}
 
       {/* Results */}
       {items.length === 0 ? (

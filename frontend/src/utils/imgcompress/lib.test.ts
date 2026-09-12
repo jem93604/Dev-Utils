@@ -3,7 +3,10 @@ import {
   AUTO_QUALITY_STEPS,
   TARGET_MAX_Q,
   TARGET_MIN_Q,
+  batchQualityLabel,
+  batchQualityTargets,
   buildOutputFilename,
+  clampQuality,
   computeExactSize,
   computeFitSize,
   computeScaleSize,
@@ -11,6 +14,7 @@ import {
   formatBytes,
   mimeForFormat,
   pickAutoQuality,
+  resolveBatchQualityMode,
   savingsPct,
   validateImageFile,
 } from './lib';
@@ -161,5 +165,38 @@ describe('target + settings constants', () => {
     expect(
       describeSettings({ mode: 'exact', format: 'jpeg', auto: false, manualQ: 0.75, targetOn: false, targetKb: 200 }),
     ).toMatch(/exact.*q0\.75/i);
+  });
+});
+
+describe('batch quality helpers', () => {
+  it('resolves a single active quality path (target wins)', () => {
+    expect(resolveBatchQualityMode({ auto: true, manualQ: 0.8, targetOn: false, targetKb: 200 })).toBe('auto');
+    expect(resolveBatchQualityMode({ auto: false, manualQ: 0.7, targetOn: false, targetKb: 200 })).toBe('manual');
+    expect(resolveBatchQualityMode({ auto: false, manualQ: 0.7, targetOn: true, targetKb: 150 })).toBe('target');
+    expect(resolveBatchQualityMode({ auto: true, manualQ: 0.8, targetOn: true, targetKb: 150 })).toBe('target');
+  });
+
+  it('labels the active batch quality for display', () => {
+    expect(batchQualityLabel({ auto: true, manualQ: 0.8, targetOn: false, targetKb: 200 })).toBe('auto');
+    expect(batchQualityLabel({ auto: false, manualQ: 0.75, targetOn: false, targetKb: 200 })).toBe('q0.75');
+    expect(batchQualityLabel({ auto: false, manualQ: 0.75, targetOn: true, targetKb: 120 })).toMatch(/≤ 120 KB/);
+  });
+
+  it('clamps quality into encoder range', () => {
+    expect(clampQuality(0.5)).toBe(0.5);
+    expect(clampQuality(99)).toBe(1);
+    expect(clampQuality(-3)).toBe(TARGET_MIN_Q);
+    expect(() => clampQuality(NaN)).toThrow();
+  });
+
+  it('picks batch targets: skips working, broken, and PNG files', () => {
+    const ids = batchQualityTargets([
+      { id: 'a', status: 'done', origUrl: 'u1', outMime: 'image/jpeg' },
+      { id: 'b', status: 'working', origUrl: 'u2', outMime: 'image/jpeg' },
+      { id: 'c', status: 'error', origUrl: '', outMime: 'image/jpeg' },
+      { id: 'd', status: 'done', origUrl: 'u4', outMime: 'image/png' },
+      { id: 'e', status: 'done', origUrl: 'u5', outMime: 'image/webp' },
+    ]);
+    expect(ids).toEqual(['a', 'e']);
   });
 });

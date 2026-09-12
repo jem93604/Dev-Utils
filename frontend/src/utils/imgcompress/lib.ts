@@ -165,3 +165,46 @@ export function describeSettings(opts: {
   const q = opts.auto ? 'auto quality' : `q${opts.manualQ.toFixed(2)}`;
   return `${mode} → ${fmt}, ${q}`;
 }
+
+export type BatchQualityMode = 'auto' | 'manual' | 'target';
+
+export interface BatchQualityInput {
+  auto: boolean;
+  manualQ: number;
+  targetOn: boolean;
+  targetKb: number;
+}
+
+/** Single active quality path — target wins, then manual, else auto. */
+export function resolveBatchQualityMode(input: BatchQualityInput): BatchQualityMode {
+  if (input.targetOn) return 'target';
+  if (!input.auto) return 'manual';
+  return 'auto';
+}
+
+/** Display label for a batch quality sweep step (used above the results bar). */
+export function batchQualityLabel(input: BatchQualityInput): string {
+  const mode = resolveBatchQualityMode(input);
+  if (mode === 'target') return `target ≤ ${Math.max(1, Math.floor(input.targetKb))} KB`;
+  if (mode === 'manual') return `q${clampQuality(input.manualQ).toFixed(2)}`;
+  return 'auto';
+}
+
+/** Clamp an arbitrary number into the encoder quality range. */
+export function clampQuality(q: number): number {
+  if (!Number.isFinite(q)) throw new Error('Quality must be a number');
+  return Math.min(1, Math.max(TARGET_MIN_Q, q));
+}
+
+/**
+ * Decide which files a batch-quality apply touches: skips files still
+ * working, errored files without a source URL, and PNG outputs (lossless —
+ * quality has no effect). Returns the ids to re-encode.
+ */
+export function batchQualityTargets(
+  files: Array<{ id: string; status: string; origUrl: string; outMime?: string }>,
+): string[] {
+  return files
+    .filter((f) => f.status !== 'working' && f.origUrl && f.outMime !== 'image/png')
+    .map((f) => f.id);
+}
