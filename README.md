@@ -25,6 +25,18 @@ Query library + developer utilities. FastAPI backend (Postgres-ready, SQLite for
 
 ## Run it
 
+One command (backend + frontend together, `Ctrl+C` stops both):
+
+```sh
+./dev.sh   # first run auto-creates backend/.env, installs .venv + node_modules
+```
+
+Backend: http://127.0.0.1:8001 (docs at `/docs`) · Frontend: http://127.0.0.1:5174 (proxies `/api` to the backend).
+
+Useful flags: `--seed` (seed demo data first), `--backend-only`, `--frontend-only`, `--no-install` (skip auto-install), `--help`.
+
+Or run each side manually:
+
 Backend (http://127.0.0.1:8001, docs at `/docs`):
 
 ```sh
