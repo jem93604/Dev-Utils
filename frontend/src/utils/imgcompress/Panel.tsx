@@ -937,21 +937,20 @@ export function ImgCompressPanel() {
           </div>
         </div>
 
-        <div style={cardStyle}>
-          <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
-            5 · Card controls
-          </div>
+        <div style={{ ...cardStyle, gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '6px 12px' }}>
+          <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', whiteSpace: 'nowrap' }}>
+            5 · Cards
+          </span>
           {([
-            ['showFileControls', 'This-file overrides (dims + format)'],
-            ['showTuner', 'Quality tuner slider'],
-            ['showActions', 'Action buttons (download / compare / copy)'],
+            ['showFileControls', 'This-file'],
+            ['showTuner', 'Tuner'],
+            ['showActions', 'Actions'],
           ] as const).map(([key, label]) => (
-            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem', marginBottom: 4 }}>
+            <label key={key} title={key === 'showFileControls' ? 'This-file overrides (dims + format)' : key === 'showTuner' ? 'Quality tuner slider' : 'Action buttons (download / compare / copy)'} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '.76rem', color: 'var(--text2)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               <input type="checkbox" checked={s[key]} onChange={(e) => set(key, e.target.checked)} />
               {label}
             </label>
           ))}
-          <div style={hintStyle}>Hide per-card sections to declutter results. Thumbnails + stats always show.</div>
         </div>
       </div>
       )}
