@@ -20,6 +20,7 @@ import {
   PSNR_MIN_DB,
   applyRenamePattern,
   computePsnr,
+  renameDateStamp,
   validateImageFile,
 } from './lib';
 
@@ -247,5 +248,13 @@ describe('bulk rename', () => {
     expect(applyRenamePattern('a.{ext}', 0, 'x.png', 'image/png')).toBe('a.png');
     expect(applyRenamePattern('a/b\\c', 0, 'x.png', 'image/png')).toBe('a-b-c.png');
     expect(applyRenamePattern('   ', 0, 'x.png', 'image/webp')).toBe('x.webp');
+  });
+
+  it('expands {date} with an explicit stamp, defaults to today', () => {
+    expect(applyRenamePattern('{date}-{name}', 0, 'x.png', 'image/png', 1, 1, '20260912')).toBe(
+      '20260912-x.png',
+    );
+    expect(renameDateStamp(new Date(2026, 8, 12))).toBe('20260912');
+    expect(applyRenamePattern('{date}', 0, 'x.png', 'image/png')).toMatch(/^\d{8}\.png$/);
   });
 });

@@ -245,10 +245,17 @@ export function computePsnr(a: ArrayLike<number>, b: ArrayLike<number>): number 
   return 10 * Math.log10((255 * 255) / mse);
 }
 
+/** Local YYYYMMDD stamp for the {date} rename token. */
+export function renameDateStamp(d = new Date()): string {
+  const p = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}`;
+}
+
 /**
  * Bulk rename: tokens {name} (basename), {i} (1-based index), {w}, {h}
- * (output dims), {ext} (without dot). Extension auto-appended unless {ext}
- * is used. Slashes stripped, empty result falls back to the original name.
+ * (output dims), {date} (local YYYYMMDD), {ext} (without dot). Extension
+ * auto-appended unless {ext} is used. Slashes stripped, empty result falls
+ * back to the original name.
  */
 export function applyRenamePattern(
   pattern: string,
@@ -257,6 +264,7 @@ export function applyRenamePattern(
   outMime: string,
   w?: number,
   h?: number,
+  dateStamp?: string,
 ): string {
   const raw = pattern.trim();
   const fallbackBase = (origName.trim() || 'image').replace(/\.[^.]*$/, '') || 'image';
@@ -265,7 +273,8 @@ export function applyRenamePattern(
     .replaceAll('{name}', fallbackBase)
     .replaceAll('{i}', String(index0 + 1))
     .replaceAll('{w}', String(w ?? ''))
-    .replaceAll('{h}', String(h ?? ''));
+    .replaceAll('{h}', String(h ?? ''))
+    .replaceAll('{date}', dateStamp ?? renameDateStamp());
   name = name.replace(/[\\/]/g, '-').trim() || fallbackBase;
   if (name.includes('{ext}')) return name.replaceAll('{ext}', extForMime(outMime).slice(1));
   return `${name}${extForMime(outMime)}`;

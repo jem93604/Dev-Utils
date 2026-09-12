@@ -74,7 +74,7 @@ interface Settings {
   /** PSNR guard: walk Auto picks up until ≥ threshold dB from original. */
   psnrGuard: boolean;
   psnrDb: number;
-  /** Bulk rename pattern ({name} {i} {w} {h} {ext}), empty = default names. */
+  /** Bulk rename pattern ({name} {i} {w} {h} {date} {ext}), empty = default names. */
   renamePattern: string;
   /** Per-card section visibility (declutter cards). */
   showFileControls: boolean;
@@ -918,7 +918,7 @@ export function ImgCompressPanel() {
               onChange={(e) => set('renamePattern', e.target.value)} style={{ width: '100%' }} spellCheck={false} />
           </Field>
           <div style={hintStyle}>
-            Tokens: {'{name} {i} {w} {h} {ext}'}. Empty = default names.
+            Tokens: {'{name} {i} {w} {h} {date} {ext}'}. Empty = default names.
             {' '}e.g. pattern <code style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>hero-{'{i}'}-{'{w}'}x{'{h}'}</code>
             {' '}→ <code style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>hero-1-1920x1080.webp</code>
             {s.renamePattern.trim() && (
