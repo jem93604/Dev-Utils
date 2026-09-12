@@ -118,7 +118,7 @@ const nid = () => `${Date.now()}-${idSeq++}`;
 const cardStyle: CSSProperties = {
   border: '1px solid var(--border)',
   borderRadius: 10,
-  padding: 12,
+  padding: 10,
   background: 'var(--bg)',
 };
 
@@ -683,6 +683,7 @@ export function ImgCompressPanel() {
   const s = settings;
   const qualityDisabled = s.targetOn;
   const [batchQ, setBatchQ] = useState(s.manualQ);
+  const [showSettings, setShowSettings] = useState(true);
   const [pvTab, setPvTab] = useState<'before' | 'after' | 'compare'>('compare');
   const [sliderPos, setSliderPos] = useState(50);
   const openPreview = (id: string, side: 'before' | 'after') => {
@@ -719,21 +720,23 @@ export function ImgCompressPanel() {
         onClick={() => fileRef.current?.click()}
         style={{
           border: `2px dashed ${dragOver ? 'var(--amber)' : 'var(--border2)'}`,
-          borderRadius: 12,
-          padding: '26px 16px',
-          textAlign: 'center',
+          borderRadius: 10,
+          padding: '12px 14px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
           cursor: 'pointer',
           background: dragOver ? 'var(--amber-dim)' : 'var(--bg)',
           transition: 'all .15s',
-          marginBottom: 12,
+          marginBottom: 10,
         }}
       >
-        <div style={{ fontSize: '1.7rem', marginBottom: 4 }}>📥</div>
-        <div style={{ fontWeight: 700, fontSize: '.88rem' }}>
-          {items.length === 0 ? 'Drop images here or click to browse' : 'Drop more images or click to add'}
+        <div style={{ fontSize: '1.3rem', lineHeight: 1 }}>📥</div>
+        <div style={{ fontWeight: 700, fontSize: '.82rem', whiteSpace: 'nowrap' }}>
+          {items.length === 0 ? 'Drop images or click to browse' : 'Drop more or click to add'}
         </div>
-        <div style={{ fontSize: '.73rem', color: 'var(--text2)', marginTop: 2 }}>
-          PNG · JPEG · WebP — up to {MAX_FILES} files per batch · <kbd style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>Ctrl+V</kbd> pastes screenshots
+        <div style={{ fontSize: '.72rem', color: 'var(--text2)', marginLeft: 'auto', textAlign: 'right' }}>
+          PNG · JPEG · WebP · ≤{MAX_FILES} · <kbd style={{ fontFamily: "'JetBrains Mono',monospace", background: 'var(--bg3)', borderRadius: 4, padding: '0 5px' }}>Ctrl+V</kbd>
         </div>
         <input
           ref={fileRef}
@@ -745,39 +748,19 @@ export function ImgCompressPanel() {
         />
       </div>
 
-      {doneItems.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            gap: 16,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            border: '1px solid var(--border)',
-            borderRadius: 10,
-            background: 'var(--bg)',
-            padding: '8px 14px',
-            marginBottom: 12,
-            fontSize: '.75rem',
-            color: 'var(--text2)',
-          }}
-        >
-          <span>
-            <strong style={{ color: 'var(--text)' }}>{doneItems.length}</strong>{' '}
-            {doneItems.length === 1 ? 'image' : 'images'} done
-          </span>
-          <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>
-            {formatBytes(doneOrig)} → {formatBytes(doneOut)}
-          </span>
-          <span style={{ fontWeight: 800, color: donePct >= 0 ? 'var(--green)' : 'var(--red)' }}>
-            {donePct >= 0 ? '−' : '+'}
-            {Math.abs(donePct).toFixed(1)}% total
-          </span>
-          <span style={{ marginLeft: 'auto', color: 'var(--text3)' }}>{summary}</span>
-        </div>
-      )}
+      {/* Settings toggle */}
+      <button
+        className="fmt-btn"
+        onClick={() => setShowSettings((v) => !v)}
+        style={{ marginBottom: showSettings ? 8 : 10 }}
+        aria-expanded={showSettings}
+      >
+        {showSettings ? '▾' : '▸'} Settings{!showSettings && <span style={{ opacity: 0.7 }}> · {summary}</span>}
+      </button>
 
-      {/* Settings — three cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10 }}>
+      {/* Settings — five cards */}
+      {showSettings && (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))', gap: 8, marginBottom: 10 }}>
         <div style={cardStyle}>
           <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
             1 · Resize
@@ -971,11 +954,11 @@ export function ImgCompressPanel() {
           <div style={hintStyle}>Hide per-card sections to declutter results. Thumbnails + stats always show.</div>
         </div>
       </div>
+      )}
 
-      <div style={{ fontSize: '.73rem', color: 'var(--text2)', marginTop: 8 }}>{summary}</div>
       <ErrMsg msg={globalErr} />
 
-      {/* Batch bar: actions + batch quality shortcut */}
+      {/* Batch bar: totals + quality + actions in one row */}
       {items.length > 0 && (
         <div
           style={{
@@ -986,11 +969,23 @@ export function ImgCompressPanel() {
             border: '1px solid var(--border)',
             borderRadius: 10,
             background: 'var(--bg)',
-            padding: '8px 12px',
-            marginTop: 10,
+            padding: '6px 12px',
+            marginTop: 0,
+            marginBottom: 10,
+            fontSize: '.75rem',
+            color: 'var(--text2)',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 220px', minWidth: 200 }}>
+          {doneItems.length > 0 && (
+            <span style={{ whiteSpace: 'nowrap' }}>
+              <strong style={{ color: 'var(--text)' }}>{doneItems.length}</strong> done ·{' '}
+              <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>{formatBytes(doneOrig)}→{formatBytes(doneOut)}</span>{' '}
+              <strong style={{ color: donePct >= 0 ? 'var(--green)' : 'var(--red)' }}>
+                {donePct >= 0 ? '−' : '+'}{Math.abs(donePct).toFixed(1)}%
+              </strong>
+            </span>
+          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: '1 1 180px', minWidth: 160 }} >
             <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em', whiteSpace: 'nowrap' }}>
               Batch q
             </span>
