@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import JSZip from 'jszip';
 import { Empty, Field, Modal, toast } from '../../components/ui';
 import { ErrMsg, UtilShell } from '../ui';
 import {
@@ -523,6 +524,41 @@ export function ImgCompressPanel() {
     });
   };
 
+  /** One-click zip of every finished file (avoids multi-download blocks). */
+  const downloadZip = async () => {
+    const done = items.filter((i) => i.status === 'done' && i.outBlob && i.outName);
+    if (done.length === 0) return;
+    setBusy(true);
+    try {
+      const zip = new JSZip();
+      const seen = new Set<string>();
+      for (const it of done) {
+        let name = it.outName!;
+        let n = 1;
+        while (seen.has(name)) {
+          const dot = it.outName!.lastIndexOf('.');
+          name = dot === -1 ? `${it.outName!}-${++n}` : `${it.outName!.slice(0, dot)}-${++n}${it.outName!.slice(dot)}`;
+        }
+        seen.add(name);
+        zip.file(name, it.outBlob!);
+      }
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'STORE' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `imgcompress-${done.length}-files.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      toast(`Zipped ${done.length} ${done.length === 1 ? 'file' : 'files'} ✓`);
+    } catch (e) {
+      setGlobalErr(e instanceof Error ? e.message : 'Zip failed');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const s = settings;
   const qualityDisabled = s.targetOn;
   const [batchQ, setBatchQ] = useState(s.manualQ);
@@ -801,8 +837,11 @@ export function ImgCompressPanel() {
             <button className="fmt-btn" onClick={recompress} disabled={busy}>
               {busy ? 'Working…' : '↻ Recompress'}
             </button>
-            <button className="fmt-btn" onClick={downloadAll} disabled={items.every((i) => i.status !== 'done')}>
-              ⬇ Download all
+            <button className="fmt-btn" onClick={() => void downloadZip()} disabled={busy || items.every((i) => i.status !== 'done')} title="Download all finished files as one .zip">
+              ⬇ Zip all
+            </button>
+            <button className="fmt-btn" onClick={downloadAll} disabled={items.every((i) => i.status !== 'done')} title="Download files one by one">
+              ⬇ Each
             </button>
             <button className="fmt-btn" onClick={clearAll}>✕ Clear</button>
           </div>
