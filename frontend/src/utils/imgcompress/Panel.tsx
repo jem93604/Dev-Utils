@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Field } from '../../components/ui';
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react';
+import { Empty, Field, Modal } from '../../components/ui';
 import { ErrMsg, UtilShell } from '../ui';
 import {
   AUTO_QUALITY_STEPS,
@@ -79,12 +79,50 @@ function encode(canvas: HTMLCanvasElement, mime: string, q?: number): Promise<Bl
 let idSeq = 0;
 const nid = () => `${Date.now()}-${idSeq++}`;
 
+const cardStyle: CSSProperties = {
+  border: '1px solid var(--border)',
+  borderRadius: 10,
+  padding: 12,
+  background: 'var(--bg)',
+};
+
+const hintStyle: CSSProperties = { fontSize: '.72rem', color: 'var(--text2)', marginTop: 4 };
+
+const thumbLabelStyle: CSSProperties = {
+  fontSize: '.66rem',
+  fontWeight: 700,
+  color: 'var(--text3)',
+  textTransform: 'uppercase',
+  letterSpacing: '.08em',
+  marginBottom: 4,
+};
+
+const zoomBadgeStyle: CSSProperties = {
+  position: 'absolute',
+  top: 6,
+  right: 6,
+  fontSize: '.7rem',
+  background: 'rgba(0,0,0,.55)',
+  color: '#fff',
+  borderRadius: 6,
+  padding: '1px 6px',
+  pointerEvents: 'none',
+};
+
+const checkerStyle: CSSProperties = {
+  background:
+    'repeating-conic-gradient(var(--bg3) 0% 25%, var(--bg2) 0% 50%) 0 0 / 22px 22px',
+  border: '1px solid var(--border2)',
+  borderRadius: 8,
+};
+
 export function ImgCompressPanel() {
   const [settings, setSettings] = useState<Settings>(DEFAULTS);
   const [items, setItems] = useState<Item[]>([]);
   const [globalErr, setGlobalErr] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [preview, setPreview] = useState<{ id: string; side: 'before' | 'after' } | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const itemsRef = useRef<Item[]>([]);
   const settingsRef = useRef(settings);
@@ -327,6 +365,16 @@ export function ImgCompressPanel() {
 
   const s = settings;
   const qualityDisabled = s.targetOn;
+  const [pvTab, setPvTab] = useState<'before' | 'after' | 'split'>('split');
+  const openPreview = (id: string, side: 'before' | 'after') => {
+    setPvTab(side);
+    setPreview({ id, side });
+  };
+  const doneItems = items.filter((i) => i.status === 'done' && i.outUrl && i.outBytes != null);
+  const doneOrig = doneItems.reduce((a, i) => a + i.file.size, 0);
+  const doneOut = doneItems.reduce((a, i) => a + (i.outBytes ?? 0), 0);
+  const donePct = doneOrig > 0 ? ((doneOrig - doneOut) / doneOrig) * 100 : 0;
+  const previewItem = preview ? items.find((i) => i.id === preview.id) : undefined;
   const summary = describeSettings({
     mode: s.mode,
     format: s.format,
@@ -340,7 +388,7 @@ export function ImgCompressPanel() {
     <UtilShell id="util-imgcompress" color="#38bdf8" title="🗜️ Image Compressor">
       <p style={{ fontSize: '.78rem', color: 'var(--text2)', margin: '0 0 12px' }}>
         Batch resize + compress PNG/JPEG/WebP. Everything runs locally — nothing leaves your browser.
-        Re-encoding strips EXIF/metadata.
+        Re-encoding strips EXIF/metadata. Click any thumbnail for a full-size preview.
       </p>
 
       {/* Dropzone */}
@@ -350,18 +398,23 @@ export function ImgCompressPanel() {
         onDrop={(e) => { e.preventDefault(); setDragOver(false); void addFiles(e.dataTransfer.files); }}
         onClick={() => fileRef.current?.click()}
         style={{
-          border: `2px dashed ${dragOver ? 'var(--amber)' : 'var(--border)'}`,
-          borderRadius: 9,
-          padding: '22px 16px',
+          border: `2px dashed ${dragOver ? 'var(--amber)' : 'var(--border2)'}`,
+          borderRadius: 12,
+          padding: '26px 16px',
           textAlign: 'center',
           cursor: 'pointer',
-          background: dragOver ? 'var(--bg)' : undefined,
+          background: dragOver ? 'var(--amber-dim)' : 'var(--bg)',
+          transition: 'all .15s',
           marginBottom: 12,
         }}
       >
-        <div style={{ fontSize: '1.4rem' }}>📥</div>
-        <div style={{ fontWeight: 700, fontSize: '.85rem' }}>Drop images here or click to browse</div>
-        <div style={{ fontSize: '.73rem', color: 'var(--text2)' }}>PNG · JPEG · WebP — up to {MAX_FILES} files</div>
+        <div style={{ fontSize: '1.7rem', marginBottom: 4 }}>📥</div>
+        <div style={{ fontWeight: 700, fontSize: '.88rem' }}>
+          {items.length === 0 ? 'Drop images here or click to browse' : 'Drop more images or click to add'}
+        </div>
+        <div style={{ fontSize: '.73rem', color: 'var(--text2)', marginTop: 2 }}>
+          PNG · JPEG · WebP — up to {MAX_FILES} files per batch
+        </div>
         <input
           ref={fileRef}
           type="file"
@@ -372,23 +425,55 @@ export function ImgCompressPanel() {
         />
       </div>
 
-      {/* Settings */}
-      <div className="fmt-grid">
-        <div className="fmt-col">
-          <Field label="Resize mode">
-            <div className="fmt-btns" style={{ marginBottom: 8 }}>
-              {(['max', 'exact', 'scale'] as ResizeMode[]).map((m) => (
-                <button
-                  key={m}
-                  className="fmt-btn"
-                  onClick={() => set('mode', m)}
-                  style={s.mode === m ? { borderColor: 'var(--amber)', color: 'var(--amber)' } : undefined}
-                >
-                  {m === 'max' ? 'Max fit' : m === 'exact' ? 'Exact W×H' : 'Scale %'}
-                </button>
-              ))}
-            </div>
-          </Field>
+      {doneItems.length > 0 && (
+        <div
+          style={{
+            display: 'flex',
+            gap: 16,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            background: 'var(--bg)',
+            padding: '8px 14px',
+            marginBottom: 12,
+            fontSize: '.75rem',
+            color: 'var(--text2)',
+          }}
+        >
+          <span>
+            <strong style={{ color: 'var(--text)' }}>{doneItems.length}</strong>{' '}
+            {doneItems.length === 1 ? 'image' : 'images'} done
+          </span>
+          <span style={{ fontFamily: "'JetBrains Mono',monospace" }}>
+            {formatBytes(doneOrig)} → {formatBytes(doneOut)}
+          </span>
+          <span style={{ fontWeight: 800, color: donePct >= 0 ? 'var(--green)' : 'var(--red)' }}>
+            {donePct >= 0 ? '−' : '+'}
+            {Math.abs(donePct).toFixed(1)}% total
+          </span>
+          <span style={{ marginLeft: 'auto', color: 'var(--text3)' }}>{summary}</span>
+        </div>
+      )}
+
+      {/* Settings — three cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))', gap: 10 }}>
+        <div style={cardStyle}>
+          <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+            1 · Resize
+          </div>
+          <div className="fmt-btns" style={{ marginTop: 0, marginBottom: 8 }}>
+            {(['max', 'exact', 'scale'] as ResizeMode[]).map((m) => (
+              <button
+                key={m}
+                className="fmt-btn"
+                onClick={() => set('mode', m)}
+                style={s.mode === m ? { borderColor: 'var(--amber)', color: 'var(--amber)' } : undefined}
+              >
+                {m === 'max' ? 'Max fit' : m === 'exact' ? 'Exact W×H' : 'Scale %'}
+              </button>
+            ))}
+          </div>
           {s.mode === 'max' && (
             <div style={{ display: 'flex', gap: 8 }}>
               <Field label="Max width (px)">
@@ -413,12 +498,12 @@ export function ImgCompressPanel() {
                     onChange={(e) => set('exactH', Math.max(1, Math.floor(Number(e.target.value) || 1)))} style={{ width: '100%' }} />
                 </Field>
               </div>
-              <div style={{ fontSize: '.72rem', color: 'var(--text2)' }}>Stretches to exact pixels — distortion + upscale allowed.</div>
+              <div style={hintStyle}>Stretches to exact pixels — distortion + upscale allowed.</div>
             </>
           )}
           {s.mode === 'scale' && (
             <>
-              <div className="fmt-btns" style={{ marginBottom: 8 }}>
+              <div className="fmt-btns" style={{ marginTop: 0, marginBottom: 8 }}>
                 {[25, 50, 75].map((p) => (
                   <button key={p} className="fmt-btn" onClick={() => set('scalePct', p)}
                     style={s.scalePct === p ? { borderColor: 'var(--amber)', color: 'var(--amber)' } : undefined}>
@@ -429,49 +514,69 @@ export function ImgCompressPanel() {
                   onChange={(e) => set('scalePct', Math.min(100, Math.max(1, Math.floor(Number(e.target.value) || 1))))}
                   style={{ width: 90 }} />
               </div>
-              <div style={{ fontSize: '.72rem', color: 'var(--text2)' }}>Downscale only (1–100%).</div>
+              <div style={hintStyle}>Downscale only (1–100%).</div>
             </>
           )}
         </div>
 
-        <div className="fmt-col">
+        <div style={cardStyle}>
+          <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+            2 · Format + quality
+          </div>
           <Field label="Output format">
-            <select className="fmt-btn" value={s.format} onChange={(e) => set('format', e.target.value as OutputFormat)}>
+            <select
+              className="fmt-btn"
+              value={s.format}
+              onChange={(e) => set('format', e.target.value as OutputFormat)}
+              style={{ width: '100%' }}
+            >
               <option value="keep">Keep original</option>
               <option value="jpeg">JPEG</option>
               <option value="png">PNG (lossless)</option>
               <option value="webp">WebP</option>
             </select>
           </Field>
-          <Field label="Quality">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem', opacity: qualityDisabled ? 0.45 : 1 }}>
-              <input type="checkbox" checked={s.auto} disabled={qualityDisabled}
-                onChange={(e) => set('auto', e.target.checked)} /> Auto-quality (max compression, minimal visual change)
-            </label>
-            {!s.auto && !qualityDisabled && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                <input type="range" min={0.05} max={1} step={0.01} value={s.manualQ}
-                  onChange={(e) => set('manualQ', Number(e.target.value))} style={{ flex: 1 }} />
-                <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '.78rem' }}>q{s.manualQ.toFixed(2)}</span>
-              </div>
-            )}
-            {qualityDisabled && <div style={{ fontSize: '.72rem', color: 'var(--text2)' }}>Overridden by Target-KB mode.</div>}
-            {s.format === 'png' && <div style={{ fontSize: '.72rem', color: 'var(--text2)' }}>PNG is lossless — quality slider does not apply (resize only).</div>}
-          </Field>
-          <Field label="Target size">
-            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem' }}>
-              <input type="checkbox" checked={s.targetOn} onChange={(e) => set('targetOn', e.target.checked)} />
-              Target max size
-              <input className="input-field" type="number" min={1} value={s.targetKb} disabled={!s.targetOn}
-                onChange={(e) => set('targetKb', Math.max(1, Math.floor(Number(e.target.value) || 1)))}
-                style={{ width: 90 }} /> KB
-            </label>
-            {s.targetOn && <div style={{ fontSize: '.72rem', color: 'var(--text2)' }}>Binary-searches quality per file. Overrides Auto/manual. PNG files fall back to resize-only.</div>}
-          </Field>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem', opacity: qualityDisabled ? 0.45 : 1, marginTop: 4 }}>
+            <input type="checkbox" checked={s.auto} disabled={qualityDisabled}
+              onChange={(e) => set('auto', e.target.checked)} /> Auto-quality
+          </label>
+          <div style={hintStyle}>Sweeps qualities, keeps max compression with minimal visual change.</div>
+          {!s.auto && !qualityDisabled && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+              <input type="range" min={0.05} max={1} step={0.01} value={s.manualQ}
+                onChange={(e) => set('manualQ', Number(e.target.value))} style={{ flex: 1 }} />
+              <span style={{ fontFamily: "'JetBrains Mono',monospace", fontSize: '.78rem', minWidth: 44, textAlign: 'right' }}>
+                q{s.manualQ.toFixed(2)}
+              </span>
+            </div>
+          )}
+          {qualityDisabled && <div style={hintStyle}>Overridden by Target-KB mode.</div>}
+          {s.format === 'png' && <div style={hintStyle}>PNG is lossless — quality does not apply (resize only).</div>}
+        </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+            3 · Size target
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem' }}>
+            <input type="checkbox" checked={s.targetOn} onChange={(e) => set('targetOn', e.target.checked)} />
+            Target max size
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <input className="input-field" type="number" min={1} value={s.targetKb} disabled={!s.targetOn}
+              onChange={(e) => set('targetKb', Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+              style={{ width: 110 }} />
+            <span style={{ fontSize: '.78rem', color: 'var(--text2)' }}>KB per file</span>
+          </div>
+          <div style={hintStyle}>
+            {s.targetOn
+              ? 'Binary-searches quality per file. Overrides Auto/manual. PNG falls back to resize-only.'
+              : 'Off — Auto/manual quality applies. Turn on to force every file under a size cap.'}
+          </div>
         </div>
       </div>
 
-      <div className="fmt-btns" style={{ margin: '10px 0' }}>
+      <div className="fmt-btns" style={{ margin: '12px 0 4px' }}>
         <button className="fmt-btn" onClick={recompress} disabled={busy || items.length === 0}>
           {busy ? 'Working…' : '↻ Recompress with current settings'}
         </button>
@@ -484,70 +589,215 @@ export function ImgCompressPanel() {
       <ErrMsg msg={globalErr} />
 
       {/* Results */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(300px,1fr))', gap: 10, marginTop: 8 }}>
-        {items.map((it) => {
-          const done = it.status === 'done' && it.outUrl;
-          const pct = done ? savingsPct(it.file.size, it.outBytes!) : null;
-          return (
-            <div key={it.id} style={{ border: '1px solid var(--border)', borderRadius: 9, padding: 10, background: 'var(--bg)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, marginBottom: 6 }}>
-                <div style={{ fontWeight: 700, fontSize: '.78rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {it.file.name}
-                </div>
-                <button className="fmt-btn" onClick={() => removeItem(it.id)} title="Remove">✕</button>
-              </div>
-              {it.status === 'error' ? (
-                <ErrMsg msg={it.error} />
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {it.origUrl && (
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '.68rem', color: 'var(--text2)', marginBottom: 4 }}>Before</div>
-                        <img src={it.origUrl} alt="original"
-                          style={{ width: '100%', height: 110, objectFit: 'contain', background: 'var(--bg2)', borderRadius: 6 }} />
-                      </div>
-                    )}
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '.68rem', color: 'var(--text2)', marginBottom: 4 }}>After</div>
-                      {done ? (
-                        <img src={it.outUrl} alt="compressed"
-                          style={{ width: '100%', height: 110, objectFit: 'contain', background: 'var(--bg2)', borderRadius: 6 }} />
-                      ) : (
-                        <div style={{ height: 110, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '.75rem', color: 'var(--text3)', background: 'var(--bg2)', borderRadius: 6 }}>
-                          Working…
-                        </div>
-                      )}
-                    </div>
+      {items.length === 0 ? (
+        <Empty icon="🖼️" text="No images yet" hint="Drop files above — thumbnails, savings, and downloads appear here" />
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(320px,1fr))', gap: 10, marginTop: 10 }}>
+          {items.map((it) => {
+            const done = it.status === 'done' && it.outUrl;
+            const pct = done ? savingsPct(it.file.size, it.outBytes!) : null;
+            return (
+              <div key={it.id} style={cardStyle}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '.78rem',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      flex: 1,
+                    }}
+                    title={it.file.name}
+                  >
+                    {it.file.name}
                   </div>
-                  <div style={{ fontSize: '.72rem', color: 'var(--text2)', marginTop: 6, lineHeight: 1.6 }}>
-                    {it.origW != null && <div>Dimensions: {it.origW}×{it.origH}{done && ` → ${it.outW}×${it.outH}`}</div>}
-                    <div>Size: {formatBytes(it.file.size)}{done && ` → ${formatBytes(it.outBytes!)}`}</div>
-                    {pct != null && (
-                      <div style={{ color: pct >= 0 ? 'var(--green)' : 'var(--red)', fontWeight: 700 }}>
-                        {pct >= 0 ? '−' : '+'}{Math.abs(pct).toFixed(1)}%{it.qualityLabel && ` · ${it.qualityLabel}`}
-                      </div>
-                    )}
-                  </div>
-                  {it.note && <div style={{ fontSize: '.7rem', color: 'var(--amber)', marginTop: 4 }}>{it.note}</div>}
-                  {done && (
-                    <div className="fmt-btns" style={{ marginTop: 6 }}>
-                      <a className="fmt-btn" href={it.outUrl} download={it.outName} style={{ textDecoration: 'none' }}>
-                        ⬇ Download
-                      </a>
-                    </div>
+                  {done && pct != null && (
+                    <span
+                      style={{
+                        fontSize: '.68rem',
+                        fontWeight: 800,
+                        color: pct >= 0 ? 'var(--green)' : 'var(--red)',
+                        background: pct >= 0 ? 'rgba(52,211,153,.12)' : 'rgba(248,113,113,.12)',
+                        borderRadius: 6,
+                        padding: '2px 8px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {pct >= 0 ? '−' : '+'}
+                      {Math.abs(pct).toFixed(1)}%
+                    </span>
                   )}
-                </>
-              )}
-            </div>
-          );
-        })}
-      </div>
-      {items.length === 0 && (
-        <div style={{ fontSize: '.75rem', color: 'var(--text3)', textAlign: 'center', marginTop: 10 }}>
-          No images yet — drop some above to start.
+                  <button
+                    className="fmt-btn"
+                    onClick={() => removeItem(it.id)}
+                    title="Remove"
+                    style={{ padding: '2px 8px' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+                {it.status === 'error' ? (
+                  <ErrMsg msg={it.error} />
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {[
+                        { side: 'before' as const, url: it.origUrl, label: 'Before' },
+                        { side: 'after' as const, url: done ? it.outUrl : undefined, label: 'After' },
+                      ].map(({ side, url, label }) => (
+                        <div key={side} style={{ flex: 1, minWidth: 0 }}>
+                          <div style={thumbLabelStyle}>{label}</div>
+                          {url ? (
+                            <button
+                              onClick={() => openPreview(it.id, side)}
+                              title={`${label} — click to preview full size`}
+                              style={{
+                                ...checkerStyle,
+                                display: 'block',
+                                width: '100%',
+                                padding: 0,
+                                cursor: 'zoom-in',
+                                position: 'relative',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <img
+                                src={url}
+                                alt={side === 'before' ? 'original' : 'compressed'}
+                                style={{ width: '100%', height: 128, objectFit: 'contain', display: 'block' }}
+                              />
+                              <span style={zoomBadgeStyle}>⤢</span>
+                            </button>
+                          ) : (
+                            <div
+                              style={{
+                                height: 128,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontSize: '.75rem',
+                                color: 'var(--text3)',
+                                background: 'var(--bg2)',
+                                border: '1px solid var(--border)',
+                                borderRadius: 8,
+                              }}
+                            >
+                              Working…
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: 12,
+                        flexWrap: 'wrap',
+                        fontSize: '.72rem',
+                        color: 'var(--text2)',
+                        marginTop: 8,
+                        fontFamily: "'JetBrains Mono',monospace",
+                      }}
+                    >
+                      <span title="Dimensions">
+                        📐 {it.origW != null ? `${it.origW}×${it.origH}` : '…'}
+                        {done && ` → ${it.outW}×${it.outH}`}
+                      </span>
+                      <span title="File size">
+                        💾 {formatBytes(it.file.size)}
+                        {done && ` → ${formatBytes(it.outBytes!)}`}
+                      </span>
+                      {it.qualityLabel && <span title="Encode quality">⚙️ {it.qualityLabel}</span>}
+                    </div>
+                    {it.note && <div style={{ fontSize: '.7rem', color: 'var(--amber)', marginTop: 4 }}>{it.note}</div>}
+                    {done && (
+                      <div className="fmt-btns" style={{ marginTop: 8 }}>
+                        <a className="fmt-btn" href={it.outUrl} download={it.outName} style={{ textDecoration: 'none' }}>
+                          ⬇ Download
+                        </a>
+                        <button className="fmt-btn" onClick={() => openPreview(it.id, 'after')}>
+                          ⤢ Compare
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
+
+      {/* Preview modal */}
+      <Modal
+        open={!!previewItem && !!preview}
+        onClose={() => setPreview(null)}
+        title={previewItem?.file.name ?? 'Preview'}
+        sub={
+          previewItem && previewItem.outBytes != null
+            ? `${previewItem.origW ?? '…'}×${previewItem.origH ?? '…'} · ${formatBytes(previewItem.file.size)} → ${previewItem.outW}×${previewItem.outH} · ${formatBytes(previewItem.outBytes)}${previewItem.qualityLabel ? ` · ${previewItem.qualityLabel}` : ''}`
+            : 'Full-size preview'
+        }
+        wide
+        footer={
+          previewItem?.status === 'done' && previewItem.outUrl ? (
+            <a className="fmt-btn" href={previewItem.outUrl} download={previewItem.outName} style={{ textDecoration: 'none' }}>
+              ⬇ Download
+            </a>
+          ) : undefined
+        }
+      >
+        {previewItem && (
+          <>
+            {previewItem.status === 'done' && previewItem.outUrl ? (
+              <>
+                <div className="fmt-btns" style={{ marginTop: 0, marginBottom: 10 }}>
+                  {(['before', 'after', 'split'] as const).map((t) => (
+                    <button
+                      key={t}
+                      className="fmt-btn"
+                      onClick={() => setPvTab(t)}
+                      style={pvTab === t ? { borderColor: 'var(--amber)', color: 'var(--amber)' } : undefined}
+                    >
+                      {t === 'before' ? 'Before' : t === 'after' ? 'After' : 'Side-by-side'}
+                    </button>
+                  ))}
+                </div>
+                {pvTab === 'split' ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    {[
+                      { label: 'Before', url: previewItem.origUrl },
+                      { label: 'After', url: previewItem.outUrl },
+                    ].map(({ label, url }) => (
+                      <div key={label}>
+                        <div style={thumbLabelStyle}>{label}</div>
+                        <div style={{ ...checkerStyle, maxHeight: '60vh', overflow: 'auto' }}>
+                          <img src={url} alt={`${label} full size`} style={{ width: '100%', display: 'block' }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ ...checkerStyle, maxHeight: '65vh', overflow: 'auto' }}>
+                    <img
+                      src={pvTab === 'before' ? previewItem.origUrl : previewItem.outUrl}
+                      alt={`${pvTab} full size`}
+                      style={{ width: '100%', display: 'block' }}
+                    />
+                  </div>
+                )}
+              </>
+            ) : previewItem.origUrl ? (
+              <div style={{ ...checkerStyle, maxHeight: '65vh', overflow: 'auto' }}>
+                <img src={previewItem.origUrl} alt="original full size" style={{ width: '100%', display: 'block' }} />
+              </div>
+            ) : (
+              <ErrMsg msg={previewItem.error ?? 'Nothing to preview'} />
+            )}
+          </>
+        )}
+      </Modal>
     </UtilShell>
   );
 }
