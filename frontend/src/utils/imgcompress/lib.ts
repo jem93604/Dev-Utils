@@ -218,3 +218,55 @@ export function batchQualityTargets(
 export function shouldKeepOriginal(origBytes: number, outBytes: number, dimsChanged: boolean): boolean {
   return !dimsChanged && outBytes >= origBytes;
 }
+
+/** Minimum PSNR (dB) the Auto guard accepts. ~35dB = good, 40dB+ ≈ transparent. */
+export const PSNR_MIN_DB = 35;
+/** Long-edge cap for PSNR compare canvases (keeps the guard cheap). */
+export const PSNR_COMPARE_MAX = 256;
+
+/**
+ * PSNR in dB between two equal-length RGBA buffers (alpha ignored).
+ * Returns Infinity for identical buffers. Throws on length mismatch/empty.
+ */
+export function computePsnr(a: ArrayLike<number>, b: ArrayLike<number>): number {
+  if (a.length !== b.length) throw new Error('PSNR buffer length mismatch');
+  if (a.length === 0) throw new Error('PSNR buffers are empty');
+  let sse = 0;
+  let n = 0;
+  for (let i = 0; i < a.length; i += 4) {
+    for (let c = 0; c < 3; c++) {
+      const d = a[i + c] - b[i + c];
+      sse += d * d;
+      n++;
+    }
+  }
+  const mse = sse / n;
+  if (mse === 0) return Infinity;
+  return 10 * Math.log10((255 * 255) / mse);
+}
+
+/**
+ * Bulk rename: tokens {name} (basename), {i} (1-based index), {w}, {h}
+ * (output dims), {ext} (without dot). Extension auto-appended unless {ext}
+ * is used. Slashes stripped, empty result falls back to the original name.
+ */
+export function applyRenamePattern(
+  pattern: string,
+  index0: number,
+  origName: string,
+  outMime: string,
+  w?: number,
+  h?: number,
+): string {
+  const raw = pattern.trim();
+  const fallbackBase = (origName.trim() || 'image').replace(/\.[^.]*$/, '') || 'image';
+  if (!raw) return `${fallbackBase}${extForMime(outMime)}`;
+  let name = raw
+    .replaceAll('{name}', fallbackBase)
+    .replaceAll('{i}', String(index0 + 1))
+    .replaceAll('{w}', String(w ?? ''))
+    .replaceAll('{h}', String(h ?? ''));
+  name = name.replace(/[\\/]/g, '-').trim() || fallbackBase;
+  if (name.includes('{ext}')) return name.replaceAll('{ext}', extForMime(outMime).slice(1));
+  return `${name}${extForMime(outMime)}`;
+}

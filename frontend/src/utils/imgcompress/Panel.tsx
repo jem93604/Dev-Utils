@@ -11,9 +11,11 @@ import {
   batchQualityLabel,
   batchQualityTargets,
   buildOutputFilename,
+  applyRenamePattern,
   computeExactSize,
   computeFitSize,
   computeScaleSize,
+  computePsnr,
   describeSettings,
   formatBytes,
   mimeForFormat,
@@ -21,6 +23,8 @@ import {
   savingsPct,
   shouldKeepOriginal,
   validateImageFile,
+  PSNR_COMPARE_MAX,
+  PSNR_MIN_DB,
   type OutputFormat,
   type ResizeMode,
 } from './lib';
@@ -47,6 +51,12 @@ interface Item {
   /** Per-card tuner override (null = follow batch settings). */
   customQ?: number;
   tuning?: boolean;
+  /** Per-file overrides for dimensions + format (undefined = batch). */
+  customMode?: ResizeMode;
+  customW?: number;
+  customH?: number;
+  customPct?: number;
+  customFormat?: OutputFormat;
 }
 
 interface Settings {
@@ -61,6 +71,11 @@ interface Settings {
   manualQ: number;
   targetOn: boolean;
   targetKb: number;
+  /** PSNR guard: walk Auto picks up until ≥ threshold dB from original. */
+  psnrGuard: boolean;
+  psnrDb: number;
+  /** Bulk rename pattern ({name} {i} {w} {h} {ext}), empty = default names. */
+  renamePattern: string;
 }
 
 const DEFAULTS: Settings = {
@@ -70,6 +85,9 @@ const DEFAULTS: Settings = {
   exactW: 800,
   exactH: 600,
   scalePct: 50,
+  psnrGuard: true,
+  psnrDb: 35,
+  renamePattern: '',
   format: 'keep',
   auto: true,
   manualQ: 0.8,
@@ -164,13 +182,18 @@ export function ImgCompressPanel() {
       bitmap = await createImageBitmap(item.file);
       const srcW = bitmap.width;
       const srcH = bitmap.height;
+      // Per-file overrides win over batch settings for this encode.
+      const mode = item.customMode ?? s.mode;
       let tw: number;
       let th: number;
-      if (s.mode === 'max') ({ w: tw, h: th } = computeFitSize(srcW, srcH, s.maxW, s.maxH));
-      else if (s.mode === 'exact') ({ w: tw, h: th } = computeExactSize(s.exactW, s.exactH));
-      else ({ w: tw, h: th } = computeScaleSize(srcW, srcH, s.scalePct));
+      if (mode === 'max') ({ w: tw, h: th } = computeFitSize(srcW, srcH, s.maxW, s.maxH));
+      else if (mode === 'exact') {
+        const ew = item.customW ?? s.exactW;
+        const eh = item.customH ?? s.exactH;
+        ({ w: tw, h: th } = computeExactSize(ew, eh));
+      } else ({ w: tw, h: th } = computeScaleSize(srcW, srcH, item.customPct ?? s.scalePct));
 
-      const outMime = mimeForFormat(item.file.type, s.format);
+      const outMime = mimeForFormat(item.file.type, item.customFormat ?? s.format);
       const canvas = document.createElement('canvas');
       canvas.width = tw;
       canvas.height = th;
@@ -183,9 +206,47 @@ export function ImgCompressPanel() {
       ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(bitmap, 0, 0, tw, th);
 
-      const outName = buildOutputFilename(item.file.name, outMime);
+      const batchIdx = itemsRef.current.findIndex((i) => i.id === item.id);
+      const outName =
+        s.renamePattern.trim()
+          ? applyRenamePattern(s.renamePattern, batchIdx === -1 ? 0 : batchIdx, item.file.name, outMime, tw, th)
+          : buildOutputFilename(item.file.name, outMime);
       const base = { origW: srcW, origH: srcH, outW: tw, outH: th, outName, outMime };
       const sameDims = tw === srcW && th === srcH;
+
+      // PSNR compare helper: draw original + output side-by-side at small
+      // size and score the pixel difference in dB.
+      const src: CanvasImageSource = bitmap;
+      const psnrOf = async (blob: Blob): Promise<number> => {
+        const scale = Math.min(1, PSNR_COMPARE_MAX / Math.max(tw, th, 1));
+        const cw = Math.max(1, Math.round(tw * scale));
+        const ch = Math.max(1, Math.round(th * scale));
+        const ref = document.createElement('canvas');
+        ref.width = cw;
+        ref.height = ch;
+        const rctx = ref.getContext('2d', { willReadFrequently: true });
+        if (!rctx) throw new Error('Canvas 2D unavailable');
+        if (outMime === 'image/jpeg') {
+          rctx.fillStyle = '#ffffff';
+          rctx.fillRect(0, 0, cw, ch);
+        }
+        rctx.imageSmoothingQuality = 'high';
+        rctx.drawImage(src, 0, 0, cw, ch);
+        const refData = rctx.getImageData(0, 0, cw, ch).data;
+        const outBmp = await createImageBitmap(blob);
+        try {
+          const out = document.createElement('canvas');
+          out.width = cw;
+          out.height = ch;
+          const octx = out.getContext('2d', { willReadFrequently: true });
+          if (!octx) throw new Error('Canvas 2D unavailable');
+          octx.drawImage(outBmp, 0, 0, cw, ch);
+          const outData = octx.getImageData(0, 0, cw, ch).data;
+          return computePsnr(refData, outData);
+        } finally {
+          outBmp.close();
+        }
+      };
 
       if (outMime === 'image/png') {
         const blob = await encode(canvas, outMime);
@@ -278,7 +339,25 @@ export function ImgCompressPanel() {
           blobs.set(q, blob);
           samples.push({ q, bytes: blob.size });
         }
-        const picked = pickAutoQuality(samples);
+        let picked = pickAutoQuality(samples);
+        let psnrDb: number | null = null;
+        // PSNR guard: verify the knee pick against the original pixels; walk
+        // up the ladder until the fidelity threshold passes.
+        if (s.psnrGuard) {
+          const threshold = Number.isFinite(s.psnrDb) ? s.psnrDb : PSNR_MIN_DB;
+          const ladder = [...AUTO_QUALITY_STEPS].sort((a, b) => a - b);
+          const start = ladder.findIndex((q) => q >= picked);
+          for (let i = Math.max(0, start); i < ladder.length; i++) {
+            const q = ladder[i];
+            const blob = blobs.get(q)!;
+            psnrDb = await psnrOf(blob);
+            if (psnrDb >= threshold) {
+              picked = q;
+              break;
+            }
+            picked = q;
+          }
+        }
         const blob = blobs.get(picked) ?? [...blobs.values()][0];
         return {
           ...base,
@@ -287,7 +366,10 @@ export function ImgCompressPanel() {
           outUrl: URL.createObjectURL(blob),
           outBlob: blob,
           effQ: picked,
-          qualityLabel: `auto q${picked.toFixed(2)}`,
+          qualityLabel:
+            psnrDb == null
+              ? `auto q${picked.toFixed(2)}`
+              : `auto q${picked.toFixed(2)} · ${psnrDb === Infinity ? '∞' : psnrDb.toFixed(1)}dB`,
         };
       }
 
@@ -438,6 +520,38 @@ export function ImgCompressPanel() {
       [{ ...target, customQ: undefined, status: 'working' as const }],
       settingsRef.current,
     );
+  };
+
+  /** Re-encode one card with per-file dimension/format overrides. */
+  const applyFileOverride = (id: string, patch: Partial<Item>) => {
+    const target = itemsRef.current.find((i) => i.id === id);
+    if (!target || target.status === 'working') return;
+    if (target.outUrl) URL.revokeObjectURL(target.outUrl);
+    const next = { ...target, ...patch, status: 'working' as const, tuning: false, outUrl: undefined as string | undefined, outBlob: undefined as Blob | undefined };
+    setItems((prev) => prev.map((p) => (p.id === id ? next : p)));
+    void runItems([next], settingsRef.current);
+  };
+
+  /** Clear all per-file overrides on a card (quality + dims + format). */
+  const resetFileOverrides = (id: string) => {
+    const target = itemsRef.current.find((i) => i.id === id);
+    if (!target) return;
+    if (target.outUrl) URL.revokeObjectURL(target.outUrl);
+    const next = {
+      ...target,
+      customQ: undefined,
+      customMode: undefined,
+      customW: undefined,
+      customH: undefined,
+      customPct: undefined,
+      customFormat: undefined,
+      status: 'working' as const,
+      tuning: false,
+      outUrl: undefined as string | undefined,
+      outBlob: undefined as Blob | undefined,
+    };
+    setItems((prev) => prev.map((p) => (p.id === id ? next : p)));
+    void runItems([next], settingsRef.current);
   };
 
   const copyText = async (text: string, label: string) => {
@@ -793,6 +907,28 @@ export function ImgCompressPanel() {
               : 'Off — Auto/manual quality applies. Turn on to force every file under a size cap.'}
           </div>
         </div>
+
+        <div style={cardStyle}>
+          <div style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.08em', marginBottom: 8 }}>
+            4 · Fidelity + naming
+          </div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '.8rem' }}>
+            <input type="checkbox" checked={s.psnrGuard} onChange={(e) => set('psnrGuard', e.target.checked)} />
+            PSNR guard (Auto)
+          </label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 8 }}>
+            <input className="input-field" type="number" min={20} max={60} step={1} value={s.psnrDb} disabled={!s.psnrGuard}
+              onChange={(e) => set('psnrDb', Math.min(60, Math.max(20, Math.round(Number(e.target.value) || PSNR_MIN_DB))))}
+              style={{ width: 90 }} />
+            <span style={{ fontSize: '.78rem', color: 'var(--text2)' }}>dB min</span>
+          </div>
+          <div style={hintStyle}>Auto walks quality up until output measures ≥ threshold from the original. 35dB = good, 40dB+ ≈ transparent.</div>
+          <Field label="Bulk rename pattern">
+            <input className="input-field" value={s.renamePattern} placeholder="hero-{i}-{w}x{h}"
+              onChange={(e) => set('renamePattern', e.target.value)} style={{ width: '100%' }} spellCheck={false} />
+          </Field>
+          <div style={hintStyle}>Tokens: {'{name} {i} {w} {h} {ext}'}. Empty = default names.</div>
+        </div>
       </div>
 
       <div style={{ fontSize: '.73rem', color: 'var(--text2)', marginTop: 8 }}>{summary}</div>
@@ -971,6 +1107,74 @@ export function ImgCompressPanel() {
                       {it.qualityLabel && <span title="Encode quality">⚙️ {it.qualityLabel}</span>}
                     </div>
                     {it.note && <div style={{ fontSize: '.7rem', color: 'var(--amber)', marginTop: 4 }}>{it.note}</div>}
+                    {/* Per-file overrides: dimensions + format */}
+                    {done && (
+                      <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                          <span style={{ fontSize: '.68rem', fontWeight: 800, color: 'var(--text3)', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+                            This file
+                          </span>
+                          {(it.customMode != null || it.customFormat != null) && (
+                            <button className="fmt-btn" onClick={() => resetFileOverrides(it.id)} title="Back to batch settings" style={{ padding: '2px 8px', marginLeft: 'auto' }}>
+                              ↺ batch
+                            </button>
+                          )}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'end' }}>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            {(['max', 'exact', 'scale'] as ResizeMode[]).map((m) => {
+                              const active = (it.customMode ?? s.mode) === m;
+                              return (
+                                <button
+                                  key={m}
+                                  className="fmt-btn"
+                                  title={m === 'max' ? 'Fit batch max' : m === 'exact' ? 'Exact W×H' : 'Scale %'}
+                                  onClick={() => applyFileOverride(it.id, { customMode: m })}
+                                  style={{ padding: '2px 8px', ...(active ? { borderColor: 'var(--amber)', color: 'var(--amber)' } : undefined) }}
+                                >
+                                  {m === 'max' ? 'Fit' : m === 'exact' ? 'W×H' : '%'}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {(it.customMode ?? s.mode) === 'exact' && (
+                            <>
+                              <input className="input-field" type="number" min={1} value={it.customW ?? s.exactW}
+                                title="Width px"
+                                onChange={(e) => applyFileOverride(it.id, { customMode: 'exact', customW: Math.max(1, Math.floor(Number(e.target.value) || 1)), customH: it.customH ?? s.exactH })}
+                                style={{ width: 76 }} />
+                              <span style={{ color: 'var(--text3)' }}>×</span>
+                              <input className="input-field" type="number" min={1} value={it.customH ?? s.exactH}
+                                title="Height px"
+                                onChange={(e) => applyFileOverride(it.id, { customMode: 'exact', customH: Math.max(1, Math.floor(Number(e.target.value) || 1)), customW: it.customW ?? s.exactW })}
+                                style={{ width: 76 }} />
+                            </>
+                          )}
+                          {(it.customMode ?? s.mode) === 'scale' && (
+                            <input className="input-field" type="number" min={1} max={100} value={it.customPct ?? s.scalePct}
+                              title="Scale %"
+                              onChange={(e) => applyFileOverride(it.id, { customMode: 'scale', customPct: Math.min(100, Math.max(1, Math.floor(Number(e.target.value) || 1))) })}
+                              style={{ width: 70 }} />
+                          )}
+                          <select
+                            className="fmt-btn"
+                            value={it.customFormat ?? s.format}
+                            title="Output format for this file"
+                            onChange={(e) => applyFileOverride(it.id, { customFormat: e.target.value as OutputFormat })}
+                          >
+                            <option value="keep">keep</option>
+                            <option value="jpeg">jpg</option>
+                            <option value="png">png</option>
+                            <option value="webp">webp</option>
+                          </select>
+                        </div>
+                        <div style={hintStyle}>
+                          {(it.customMode != null || it.customFormat != null)
+                            ? 'Overriding batch for this file.'
+                            : 'Follows batch — change anything to override.'}
+                        </div>
+                      </div>
+                    )}
                     {/* Quality tuner (JPEG/WebP only) */}
                     {done && it.outMime !== 'image/png' && (
                       <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 8 }}>

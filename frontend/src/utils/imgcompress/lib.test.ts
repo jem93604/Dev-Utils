@@ -17,6 +17,9 @@ import {
   resolveBatchQualityMode,
   savingsPct,
   shouldKeepOriginal,
+  PSNR_MIN_DB,
+  applyRenamePattern,
+  computePsnr,
   validateImageFile,
 } from './lib';
 
@@ -206,5 +209,43 @@ describe('batch quality helpers', () => {
     expect(shouldKeepOriginal(1000, 1000, false)).toBe(true);
     expect(shouldKeepOriginal(1000, 900, false)).toBe(false);
     expect(shouldKeepOriginal(1000, 5000, true)).toBe(false);
+  });
+});
+
+describe('psnr guard', () => {
+  it('returns Infinity for identical buffers', () => {
+    const px = [10, 20, 30, 255, 40, 50, 60, 255];
+    expect(computePsnr(px, [...px])).toBe(Infinity);
+  });
+
+  it('scores small drift high and big drift low', () => {
+    const a = new Array(400).fill(128);
+    const close = a.map((v, i) => (i % 4 === 3 ? v : v + 1));
+    const far = a.map((v, i) => (i % 4 === 3 ? v : (v + 80) % 256));
+    expect(computePsnr(a, close)).toBeGreaterThan(PSNR_MIN_DB);
+    expect(computePsnr(a, far)).toBeLessThan(PSNR_MIN_DB);
+  });
+
+  it('ignores alpha and rejects bad input', () => {
+    const a = [10, 20, 30, 0, 40, 50, 60, 0];
+    const b = [10, 20, 30, 255, 40, 50, 60, 255];
+    expect(computePsnr(a, b)).toBe(Infinity);
+    expect(() => computePsnr([1, 2, 3, 4], [1, 2])).toThrow();
+    expect(() => computePsnr([], [])).toThrow();
+  });
+});
+
+describe('bulk rename', () => {
+  it('expands tokens and appends extension', () => {
+    expect(applyRenamePattern('hero-{i}-{w}x{h}', 0, 'photo.png', 'image/webp', 800, 600)).toBe(
+      'hero-1-800x600.webp',
+    );
+    expect(applyRenamePattern('{name}-opt', 2, 'shot.jpg', 'image/jpeg', 100, 100)).toBe('shot-opt.jpg');
+  });
+
+  it('respects {ext} and sanitizes slashes', () => {
+    expect(applyRenamePattern('a.{ext}', 0, 'x.png', 'image/png')).toBe('a.png');
+    expect(applyRenamePattern('a/b\\c', 0, 'x.png', 'image/png')).toBe('a-b-c.png');
+    expect(applyRenamePattern('   ', 0, 'x.png', 'image/webp')).toBe('x.webp');
   });
 });
