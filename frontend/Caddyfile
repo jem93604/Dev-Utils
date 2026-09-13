@@ -1,0 +1,23 @@
+# Serves frontend/dist on :80 and proxies same-origin /api/* to the backend.
+# Frontend uses HashRouter + relative /api/v1 baseURL, so no SPA rewrite config needed.
+:80 {
+	root * /srv
+	encode gzip
+
+	@api path /api/*
+	handle @api {
+		reverse_proxy api:8001
+	}
+
+	handle {
+		try_files {path} /index.html
+		file_server
+	}
+
+	header /assets/* Cache-Control "public, max-age=31536000, immutable"
+
+	log
+}
+
+# For a custom domain with automatic TLS, replace ":80" above with your
+# domain name (e.g. sqlhub.example.com) and keep ports 80+443 published.

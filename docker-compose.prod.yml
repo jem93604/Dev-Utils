@@ -1,0 +1,54 @@
+# Production stack for a single always-free GCP e2-micro VM.
+# Usage on the VM:
+#   cp backend/.env.example backend/.env   # then set JWT_SECRET + CORS_ORIGINS=http://<STATIC-IP>
+#   POSTGRES_PASSWORD=<long-random> docker compose -f docker-compose.prod.yml up -d --build
+#   curl -s http://127.0.0.1/health
+#
+# DATABASE_URL is built here from POSTGRES_PASSWORD so api + db always agree;
+# backend/.env still supplies JWT_SECRET, CORS_ORIGINS, AUTH_ENABLED, etc.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: sqlhub
+      POSTGRES_DB: sqlhub
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sqlhub-change-me}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sqlhub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  api:
+    build: ./backend
+    env_file: ./backend/.env
+    environment:
+      DATABASE_URL: postgresql+psycopg2://sqlhub:${POSTGRES_PASSWORD:-sqlhub-change-me}@db:5432/sqlhub
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8001"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  web:
+    build: ./frontend
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  pgdata:
