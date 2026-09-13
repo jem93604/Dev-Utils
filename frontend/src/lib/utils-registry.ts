@@ -26,6 +26,7 @@ import { mockrowsUtil } from '../utils/mockrows';
 import { wherebuilderUtil } from '../utils/wherebuilder';
 import { connstrUtil } from '../utils/connstr';
 import { linksaverUtil } from '../utils/linksaver';
+import { imgcompressUtil } from '../utils/imgcompress';
 
 export interface UtilDef {
   slug: string;
@@ -58,6 +59,7 @@ export const ALL_UTILS: UtilModule[] = [
   wherebuilderUtil,
   connstrUtil,
   linksaverUtil,
+  imgcompressUtil,
 ];
 
 export const UTILS: UtilDef[] = ALL_UTILS.map((u) => ({
