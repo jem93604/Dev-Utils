@@ -1,6 +1,9 @@
-# Serves frontend/dist on :80 and proxies same-origin /api/* to the backend.
-# Frontend uses HashRouter + relative /api/v1 baseURL, so no SPA rewrite config needed.
-:80 {
+# Serves frontend/dist over auto-TLS HTTPS and proxies same-origin /api/*
+# to the backend. Frontend uses HashRouter + relative /api/v1 baseURL, so
+# no SPA rewrite config needed.
+# Caddy provisions a Let's Encrypt cert on first request; port 80 stays
+# open for the ACME HTTP challenge + HTTP->HTTPS redirect.
+7736735924.xyz {
 	root * /srv
 	encode gzip
 
@@ -18,6 +21,3 @@
 
 	log
 }
-
-# For a custom domain with automatic TLS, replace ":80" above with your
-# domain name (e.g. sqlhub.example.com) and keep ports 80+443 published.
