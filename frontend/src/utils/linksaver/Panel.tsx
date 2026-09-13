@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { detectPlatform, isPlaylistUrl, isValidMediaUrl, stripPlaylistParams } from "./lib";
+import {
+  detectPlatform,
+  directHrefFor,
+  formatExpiry,
+  isPlaylistUrl,
+  isValidMediaUrl,
+  isZeroEgress,
+  stripPlaylistParams,
+} from "./lib";
 import { CopyBtn, UtilShell } from "../ui";
 import { Empty, QTag, toast } from "../../components/ui";
 
@@ -10,6 +18,9 @@ interface MediaFormat {
   quality?: string;
   ext: string;
   url: string | null;
+  category?: string | null;
+  is_progressive?: boolean | null;
+  expires_in?: number | null;
 }
 
 interface MediaVariant {
@@ -19,6 +30,10 @@ interface MediaVariant {
   quality: string;
   audio_only: boolean;
   download_endpoint: string;
+  redirect_endpoint?: string | null;
+  direct_url?: string | null;
+  expires_in?: number | null;
+  needs_mux?: boolean | null;
   available?: boolean | null;
   ext: string;
 }
@@ -129,9 +144,42 @@ export function LinkSaverPanel() {
   const videoVariants = variants.filter((v) => v.kind === "video");
   const audioVariant = variants.find((v) => v.kind === "audio") ?? null;
   const directHref = data?.download_url ?? null;
+  const zeroEgressCount = variants.filter(isZeroEgress).length;
+
+  const openDirect = (v: MediaVariant) => {
+    // Zero-egress: bytes flow YouTube -> user device. Server only served
+    // JSON + (for redirect_endpoint) a 302 header. Navigate immediately —
+    // signed URLs expire in minutes and may be IP-locked.
+    const href = directHrefFor(v);
+    if (!href) return false;
+    const name =
+      data?.title
+        ? `${data.title.slice(0, 80)}.${v.ext}`
+        : v.kind === "audio"
+          ? "audio.mp3"
+          : "video.mp4";
+    const a = document.createElement("a");
+    a.href = href;
+    a.target = "_blank";
+    a.rel = "noreferrer";
+    // `download` hint only honored same-origin / with CD headers; harmless otherwise.
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setDlDone(v.id);
+    toast(
+      v.needs_mux
+        ? "Opened split stream — mux with ffmpeg.wasm (see note)"
+        : "Opened direct link ✓ (use within minutes)"
+    );
+    return true;
+  };
 
   const downloadVariant = async (v: MediaVariant) => {
     if (dlId) return;
+    // Prefer zero-egress for YouTube; server fetch only when no direct link.
+    if (openDirect(v)) return;
     setDlError(undefined);
     setDlId(v.id);
     try {
@@ -237,8 +285,9 @@ export function LinkSaverPanel() {
 
       <p className="ls-sub">
         Save <b>public videos you have rights to</b> — paste a link, hit Fetch once,
-        then pick any quality below. Cobalt first, yt-dlp fallback. Playlist links
-        fetch as a single video, 2&nbsp;GB cap. Respect platform ToS.
+        then pick any quality below. YouTube direct links stream straight from
+        Google (zero server egress — use within minutes, 403 means IP-lock).
+        Playlist links fetch as a single video. Respect platform ToS.
       </p>
 
       <form
@@ -348,31 +397,66 @@ export function LinkSaverPanel() {
               <div className="ls-host">{trimmed}</div>
               <div className="ls-tags">
                 <QTag kind="begin">single video</QTag>
-                <QTag kind="select">≤ 2 GB</QTag>
+                {zeroEgressCount > 0 ? (
+                  <QTag kind="select">0 egress · {zeroEgressCount} direct</QTag>
+                ) : (
+                  <QTag kind="select">≤ 2 GB</QTag>
+                )}
                 {videoVariants.length > 0 && (
                   <QTag kind="pin">{videoVariants.length} qualities</QTag>
                 )}
               </div>
               {videoVariants.length > 0 && (
                 <>
-                  <span className="ls-optlabel">Video — pick a quality, no re-fetch</span>
+                  <span className="ls-optlabel">Video — direct, no re-fetch, use within minutes</span>
                   <div className="ls-dlgrid">
-                    {videoVariants.map((v) => (
-                      <button
-                        key={v.id}
-                        type="button"
-                        className={`ls-dlrow${v.available === false ? "" : " best"}`}
-                        onClick={() => downloadVariant(v)}
-                        disabled={dlId !== null}
-                        title={v.available === false ? "Above source max — yt-dlp serves closest match" : `Download ${v.label}`}
-                      >
-                        <span className="q">⬇ {v.label}</span>
-                        {v.available === false && <span className="unav">~max</span>}
-                        <span className="st">
-                          {dlId === v.id ? "⟳…" : dlDone === v.id ? "✓" : "mp4"}
-                        </span>
-                      </button>
-                    ))}
+                    {videoVariants.map((v) => {
+                      const href = directHrefFor(v);
+                      const expiry = formatExpiry(v.expires_in);
+                      const title = v.available === false
+                        ? "Above source max — closest match"
+                        : v.needs_mux
+                          ? "DASH split stream — direct video-only, mux audio client-side"
+                          : `Direct ${v.label} — zero server egress`;
+                      if (href) {
+                        return (
+                          <a
+                            key={v.id}
+                            className={`ls-dlrow${v.available === false ? "" : " best"}`}
+                            href={href}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={title}
+                            style={{ textDecoration: "none" }}
+                            onClick={() => {
+                              setDlDone(v.id);
+                              toast(v.needs_mux ? "Opened split stream — see mux note" : "Opened direct link ✓");
+                            }}
+                          >
+                            <span className="q">⬇ {v.label}</span>
+                            {v.available === false && <span className="unav">~max</span>}
+                            {v.needs_mux && <span className="unav">mux</span>}
+                            <span className="st">{expiry ?? (dlDone === v.id ? "✓" : "direct")}</span>
+                          </a>
+                        );
+                      }
+                      return (
+                        <button
+                          key={v.id}
+                          type="button"
+                          className={`ls-dlrow${v.available === false ? "" : " best"}`}
+                          onClick={() => downloadVariant(v)}
+                          disabled={dlId !== null}
+                          title="No direct link — server fetch fallback"
+                        >
+                          <span className="q">⬇ {v.label}</span>
+                          {v.available === false && <span className="unav">~max</span>}
+                          <span className="st">
+                            {dlId === v.id ? "⟳…" : dlDone === v.id ? "✓" : "srv"}
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </>
               )}
@@ -380,18 +464,36 @@ export function LinkSaverPanel() {
                 <>
                   <span className="ls-optlabel" style={{ marginTop: 8 }}>Audio</span>
                   <div className="ls-dlgrid">
-                    <button
-                      type="button"
-                      className="ls-dlrow best"
-                      onClick={() => downloadVariant(audioVariant)}
-                      disabled={dlId !== null}
-                      title="Download MP3 audio"
-                    >
-                      <span className="q">🎵 {audioVariant.label}</span>
-                      <span className="st">
-                        {dlId === audioVariant.id ? "⟳…" : dlDone === audioVariant.id ? "✓" : "mp3"}
-                      </span>
-                    </button>
+                    {directHrefFor(audioVariant) ? (
+                      <a
+                        className="ls-dlrow best"
+                        href={directHrefFor(audioVariant) as string}
+                        target="_blank"
+                        rel="noreferrer"
+                        title="Direct audio — zero server egress"
+                        style={{ textDecoration: "none" }}
+                        onClick={() => {
+                          setDlDone(audioVariant.id);
+                          toast("Opened direct audio ✓");
+                        }}
+                      >
+                        <span className="q">🎵 {audioVariant.label}</span>
+                        <span className="st">{formatExpiry(audioVariant.expires_in) ?? "direct"}</span>
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        className="ls-dlrow best"
+                        onClick={() => downloadVariant(audioVariant)}
+                        disabled={dlId !== null}
+                        title="Download MP3 audio"
+                      >
+                        <span className="q">🎵 {audioVariant.label}</span>
+                        <span className="st">
+                          {dlId === audioVariant.id ? "⟳…" : dlDone === audioVariant.id ? "✓" : "mp3"}
+                        </span>
+                      </button>
+                    )}
                     {directHref && (
                       <a
                         className="ls-dlrow"
@@ -410,7 +512,9 @@ export function LinkSaverPanel() {
               )}
               <div className="ls-actions">
                 {variants.length > 0 && (
-                  <CopyBtn text={window.location.origin + variants[2].download_endpoint} />
+                  <CopyBtn
+                    text={window.location.origin + (variants[2].redirect_endpoint ?? variants[2].download_endpoint)}
+                  />
                 )}
                 <button
                   type="button"

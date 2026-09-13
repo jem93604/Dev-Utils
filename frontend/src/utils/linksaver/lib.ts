@@ -47,3 +47,29 @@ export function stripPlaylistParams(url: string): string {
     return url;
   }
 }
+
+/** Human expiry label for zero-egress direct URLs (5-6 min typical, 1h max). */
+export function formatExpiry(expiresIn?: number | null): string | null {
+  if (expiresIn == null || !Number.isFinite(expiresIn)) return null;
+  if (expiresIn <= 0) return "expired — re-fetch";
+  if (expiresIn < 60) return `use within ${Math.max(1, Math.round(expiresIn))}s`;
+  const mins = Math.round(expiresIn / 60);
+  if (mins < 60) return `use within ~${mins} min`;
+  return `use within ~${Math.round(mins / 60)}h`;
+}
+
+export interface DirectVariantLike {
+  redirect_endpoint?: string | null;
+  direct_url?: string | null;
+  needs_mux?: boolean | null;
+}
+
+/** Preferred zero-egress href: redirect first (hides signatures), raw URL fallback. */
+export function directHrefFor(v: DirectVariantLike): string | null {
+  return v.redirect_endpoint ?? v.direct_url ?? null;
+}
+
+/** True when a variant can download without touching server egress. */
+export function isZeroEgress(v: DirectVariantLike): boolean {
+  return Boolean(v.redirect_endpoint ?? v.direct_url);
+}

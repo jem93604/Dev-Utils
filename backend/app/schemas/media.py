@@ -12,6 +12,20 @@ class MediaFormat(BaseModel):
     quality: str = ""
     ext: str = ""
     url: str | None = None
+    height: int | None = None
+    note: str = ""
+    vcodec: str = ""
+    acodec: str = ""
+    filesize: int | float | None = None
+    tbr: int | float | None = None
+    protocol: str | None = None
+    category: str | None = Field(
+        default=None, description="progressive|video-only|audio-only|unknown"
+    )
+    is_progressive: bool | None = None
+    expires_in: int | None = Field(
+        default=None, description="Seconds until the signed URL expires (None = use now)"
+    )
 
 
 class MediaVariant(BaseModel):
@@ -21,6 +35,16 @@ class MediaVariant(BaseModel):
     quality: str = "720"
     audio_only: bool = False
     download_endpoint: str = ""
+    redirect_endpoint: str | None = Field(
+        default=None, description="Zero-egress 302 redirect to signed CDN URL"
+    )
+    direct_url: str | None = Field(
+        default=None, description="Raw signed CDN URL (short-lived, may be IP-locked)"
+    )
+    expires_in: int | None = None
+    needs_mux: bool | None = Field(
+        default=None, description="True when DASH split needs client-side mux"
+    )
     available: bool | None = Field(
         default=None, description="True when confirmed from metadata, None when unknown"
     )
