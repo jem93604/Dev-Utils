@@ -4,7 +4,7 @@
 	root * /srv
 	encode gzip
 
-	@api path /api/*
+	@api path /api/* /health
 	handle @api {
 		reverse_proxy api:8001
 	}
