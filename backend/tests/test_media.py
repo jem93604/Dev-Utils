@@ -87,7 +87,11 @@ def test_resolve_download_endpoint_aliases_go_redirect(monkeypatch):
         raise RuntimeError("cobalt blocked")
 
     async def fake_ytdlp(url, quality):
-        return {"title": "t", "thumbnail": "", "download_url": None, "formats": [{"id": "18"}]}
+        return {"title": "t", "thumbnail": "", "download_url": None, "formats": [{
+            "id": "18", "height": 360, "ext": "mp4", "protocol": "https",
+            "vcodec": "avc1", "acodec": "mp4a", "category": "progressive",
+            "is_progressive": True, "url": "https://cdn.example.com/v.mp4",
+        }]}
 
     monkeypatch.setattr(m, "resolve_via_cobalt", fail_cobalt)
     monkeypatch.setattr(m, "resolve_via_ytdlp", fake_ytdlp)
