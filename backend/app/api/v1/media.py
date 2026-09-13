@@ -1,7 +1,7 @@
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
 
 from app.schemas.media import MediaResolveOut, MediaResolveRequest
@@ -11,6 +11,7 @@ from app.services.media import (
     cleanup_download_dir,
     detect_platform,
     download_media,
+    resolve_direct_url,
     resolve_media,
     sanitize_filename,
     strip_playlist_params,
@@ -63,6 +64,37 @@ def _validate_download_url(raw: str) -> str:
         raise HTTPException(422, "valid http(s) url required")
     # Playlist URLs download as a single video — ignore the list part.
     return strip_playlist_params(url)
+
+
+@router.get("/media/go")
+async def go(
+    url: str = Query(..., description="Source video URL"),
+    quality: str = Query("720"),
+    audio_only: bool = Query(False),
+    format_id: str | None = Query(None, description="Exact yt-dlp format id"),
+):
+    """Zero-egress redirect: re-extract and 302 to the signed CDN URL.
+
+    Bytes flow YouTube -> user device. The server only serves this
+    redirect header — no download, no temp file, no media egress.
+    URLs are short-lived (use within minutes) and may be IP-locked;
+    the client should navigate immediately via anchor tag.
+    """
+    src = _validate_download_url(url)
+    if detect_platform(src) != "youtube":
+        raise HTTPException(400, "direct redirect currently supports YouTube only")
+    try:
+        direct = await resolve_direct_url(src, quality or "720", bool(audio_only), format_id)
+    except RuntimeError as e:
+        raise HTTPException(502, str(e))
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(502, f"redirect failed: {e}")
+    headers = {}
+    if direct.get("expires_in"):
+        headers["X-Direct-Expires-In"] = str(direct["expires_in"])
+    if direct.get("format_id"):
+        headers["X-Direct-Format"] = str(direct["format_id"])
+    return RedirectResponse(direct["url"], status_code=302, headers=headers)
 
 
 @router.get("/media/download")
