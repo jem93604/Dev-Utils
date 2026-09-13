@@ -99,10 +99,12 @@ async def go(
     if direct.get("format_id"):
         headers["X-Direct-Format"] = str(direct["format_id"])
     logger.info(
-        "zero-egress redirect: quality=%s audio_only=%s format_id=%s expires_in=%s url=%s",
+        "zero-egress redirect: quality=%s audio_only=%s format_id=%s category=%s ext=%s expires_in=%s url=%s",
         quality,
         bool(audio_only),
         direct.get("format_id"),
+        direct.get("category"),
+        direct.get("ext"),
         direct.get("expires_in"),
         src,
     )

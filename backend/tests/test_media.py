@@ -244,6 +244,51 @@ def test_go_rejects_non_youtube():
     assert r.status_code == 400
 
 
+def test_go_skips_hls_manifests(monkeypatch):
+    """m3u8/mpd manifests must never back a redirect — browser opens a
+    playlist instead of downloading a file."""
+    import app.services.media as m
+
+    hls = {
+        "id": "hls-720",
+        "height": 720,
+        "ext": "m3u8",
+        "protocol": "m3u8_native",
+        "category": "video-only",
+        "is_progressive": False,
+        "url": "https://example.com/stream.m3u8?expire=9999999999",
+        "expires_in": 3600,
+    }
+    prog = {
+        "id": "18",
+        "height": 360,
+        "ext": "mp4",
+        "protocol": "https",
+        "category": "progressive",
+        "is_progressive": True,
+        "url": "https://example.com/v.mp4?expire=9999999999",
+        "expires_in": 3600,
+    }
+
+    async def fake_ytdlp(url, quality):
+        return {"title": "t", "thumbnail": "", "formats": [hls, prog]}
+
+    # Drive through the real resolve_direct_url with stubbed extraction.
+    async def fake_extract(url, quality):
+        return {"title": "t", "thumbnail": "", "formats": [hls, prog]}
+
+    monkeypatch.setattr(m, "resolve_via_ytdlp", fake_extract)
+    c = _client()
+    r = c.get(
+        "/api/v1/media/go",
+        params={"url": "https://www.youtube.com/watch?v=x", "quality": "720"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 302, r.text
+    assert r.headers["location"] == prog["url"]
+    assert r.headers["X-Direct-Format"] == "18"
+
+
 def test_download_logs_server_egress(monkeypatch, tmp_path, caplog):
     import logging
 

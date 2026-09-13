@@ -171,6 +171,25 @@ def _expiry_ttl(signed_url: str | None, now: int) -> int | None:
     return None
 
 
+def _is_file_direct(f: dict) -> bool:
+    """True when a format URL is a direct file, not a manifest.
+
+    HLS/DASH manifests (m3u8/mpd) open as playlists in the browser instead
+    of downloading a file, so they must never back a zero-egress redirect.
+    """
+    url = str(f.get("url") or "").lower()
+    proto = str(f.get("protocol") or "").lower()
+    ext = str(f.get("ext") or "").lower()
+    if ext in ("m3u8", "mpd", "m4s"):
+        return False
+    if ".m3u8" in url or ".mpd" in url:
+        return False
+    bad = ("m3u8", "http_dash", "dash", "hls", "mhtml", "rtmp", "rtsp", "f4m", "ism")
+    if any(b in proto for b in bad):
+        return False
+    return True
+
+
 def _pick_direct_format(
     formats: list[dict], format_id: str | None, quality: str, audio_only: bool
 ) -> dict | None:
@@ -178,8 +197,10 @@ def _pick_direct_format(
 
     Priority: exact format_id match -> best progressive <= height ->
     best video-only <= height -> best audio-only (audio_only mode).
+    HLS/DASH manifests are skipped — only direct files qualify.
     """
     fmts = [f for f in (formats or []) if isinstance(f, dict) and f.get("url")]
+    fmts = [f for f in fmts if _is_file_direct(f)]
     if not fmts:
         return None
     if format_id:
