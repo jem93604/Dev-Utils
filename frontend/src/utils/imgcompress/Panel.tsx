@@ -4,7 +4,6 @@ import { Empty, Field, Modal, toast } from '../../components/ui';
 import { ErrMsg, UtilShell } from '../ui';
 import {
   AUTO_QUALITY_STEPS,
-  ENCODE_LANES,
   MAX_FILES,
   TARGET_MAX_Q,
   TARGET_MIN_Q,
@@ -17,14 +16,10 @@ import {
   computeFitSize,
   computeScaleSize,
   computePsnr,
-  dedupeKey,
   describeSettings,
-  findDuplicateIds,
   formatBytes,
-  hashBytes,
   mimeForFormat,
   pickAutoQuality,
-  poolChunks,
   savingsPct,
   shouldKeepOriginal,
   validateImageFile,
@@ -33,7 +28,6 @@ import {
   type OutputFormat,
   type ResizeMode,
 } from './lib';
-import type { WorkerRequest, WorkerSuccess, WorkerFailure } from './worker';
 
 interface Item {
   id: string;
