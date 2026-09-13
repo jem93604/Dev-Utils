@@ -23,7 +23,8 @@ export function Topbar({
   return (
     <div className="topbar">
       <button className="sidebar-toggle" onClick={onToggleSidebar} title="Toggle Sidebar">☰</button>
-      <div className="topbar-brand">
+      <button className="tbtn" onClick={() => nav('/')} title="Go to Home">🏠</button>
+      <div className="topbar-brand" onClick={() => nav('/')} title="Go to Home" style={{ cursor: 'pointer' }}>
         <div className="topbar-brand-icon">⚡</div>
         SQL HUB <span style={{ fontSize: '.65rem', color: 'var(--text3)', fontWeight: 400 }}>V3</span>
       </div>
