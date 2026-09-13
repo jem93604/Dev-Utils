@@ -80,7 +80,7 @@ def test_resolve_playlist_url_resolves_single_video(monkeypatch):
     assert r.json()["source"] == "cobalt"
 
 
-def test_resolve_includes_backend_download_endpoint(monkeypatch):
+def test_resolve_download_endpoint_aliases_go_redirect(monkeypatch):
     import app.services.media as m
 
     async def fail_cobalt(url, quality):
@@ -95,7 +95,7 @@ def test_resolve_includes_backend_download_endpoint(monkeypatch):
     r = c.post("/api/v1/media/resolve", json={"url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["download_endpoint"].startswith("/api/v1/media/download?")
+    assert body["download_endpoint"].startswith("/api/v1/media/go?")
     assert "url=" in body["download_endpoint"]
     # One fetch -> all qualities + mp3, no re-fetch needed.
     variants = body["variants"]
@@ -104,7 +104,8 @@ def test_resolve_includes_backend_download_endpoint(monkeypatch):
         "360", "480", "720", "1080", "1440", "2160",
     ]
     assert any(v["kind"] == "audio" and v["audio_only"] for v in variants)
-    assert all(v["download_endpoint"].startswith("/api/v1/media/download?") for v in variants)
+    # Legacy download_endpoint must never point at the disabled route.
+    assert all("/media/download" not in v["download_endpoint"] for v in variants)
 
 
 def test_resolve_marks_unsupported_qualities(monkeypatch):
@@ -131,77 +132,22 @@ def test_resolve_marks_unsupported_qualities(monkeypatch):
     assert by_q["1080"]["available"] is False
 
 
-def test_download_streams_file(monkeypatch, tmp_path):
-    import app.api.v1.media as api
+def test_download_route_disabled_zero_egress_only(caplog):
+    """GET /media/download must never stream bytes — zero-egress only."""
+    import logging
 
-    f = tmp_path / "vid.mp4"
-    f.write_bytes(b"fake-bytes")
-    d = tmp_path / "work"
-    d.mkdir()
-
-    async def fake_dl(url, quality, audio_only):
-        return {
-            "path": str(f),
-            "tmpdir": str(d),
-            "filename": "vid.mp4",
-            "media_type": "video/mp4",
-            "size": 10,
-        }
-
-    monkeypatch.setattr(api, "download_media", fake_dl)
     c = _client()
-    r = c.get("/api/v1/media/download", params={"url": "https://vimeo.com/1"})
-    assert r.status_code == 200, r.text
-    assert r.content == b"fake-bytes"
-    assert "attachment" in r.headers.get("content-disposition", "")
+    with caplog.at_level(logging.WARNING, logger="sqlhub.media"):
+        r = c.get("/api/v1/media/download", params={"url": "https://vimeo.com/1"})
+    assert r.status_code == 410, r.text
+    assert "zero-egress" in r.json()["detail"].lower()
+    assert any("blocked server-egress" in m for m in caplog.messages)
 
 
 def test_download_rejects_bad_url():
     c = _client()
     r = c.get("/api/v1/media/download", params={"url": "not-a-url"})
     assert r.status_code == 422
-
-
-def test_download_playlist_url_downloads_single_video(monkeypatch, tmp_path):
-    """Playlist param on /download is stripped — downloads the single video."""
-    import app.api.v1.media as api
-
-    f = tmp_path / "vid.mp4"
-    f.write_bytes(b"fake-bytes")
-    d = tmp_path / "work"
-    d.mkdir()
-    seen: dict = {}
-
-    async def fake_dl(url, quality, audio_only):
-        seen["url"] = url
-        return {
-            "path": str(f),
-            "tmpdir": str(d),
-            "filename": "vid.mp4",
-            "media_type": "video/mp4",
-            "size": 10,
-        }
-
-    monkeypatch.setattr(api, "download_media", fake_dl)
-    c = _client()
-    r = c.get(
-        "/api/v1/media/download",
-        params={"url": "https://www.youtube.com/watch?v=x&list=PL1&index=2"},
-    )
-    assert r.status_code == 200, r.text
-    assert "list=" not in seen["url"]
-
-
-def test_download_surfaces_backend_failure(monkeypatch):
-    import app.api.v1.media as api
-
-    async def fail_dl(url, quality, audio_only):
-        raise RuntimeError("download failed: boom")
-
-    monkeypatch.setattr(api, "download_media", fail_dl)
-    c = _client()
-    r = c.get("/api/v1/media/download", params={"url": "https://vimeo.com/1"})
-    assert r.status_code == 502
 
 
 def test_go_redirects_zero_egress(monkeypatch, caplog):
@@ -234,14 +180,30 @@ def test_go_redirects_zero_egress(monkeypatch, caplog):
     assert any("zero-egress redirect" in m for m in caplog.messages)
 
 
-def test_go_rejects_non_youtube():
+def test_go_redirects_any_platform(monkeypatch):
+    """Zero-egress is platform-agnostic: /go works for YouTube AND others."""
+    import app.api.v1.media as api
+
+    async def fake_direct(url, quality, audio_only, format_id=None):
+        return {
+            "url": "https://cdn.example.com/v.mp4?expire=123",
+            "format_id": "best",
+            "category": "progressive",
+            "is_progressive": True,
+            "expires_in": 300,
+            "ext": "mp4",
+        }
+
+    monkeypatch.setattr(api, "resolve_direct_url", fake_direct)
     c = _client()
-    r = c.get(
-        "/api/v1/media/go",
-        params={"url": "https://vimeo.com/1"},
-        follow_redirects=False,
-    )
-    assert r.status_code == 400
+    for src in ("https://www.youtube.com/watch?v=x", "https://vimeo.com/1"):
+        r = c.get(
+            "/api/v1/media/go",
+            params={"url": src, "quality": "720"},
+            follow_redirects=False,
+        )
+        assert r.status_code == 302, r.text
+        assert r.headers["location"].startswith("https://cdn.example.com/")
 
 
 def test_go_skips_hls_manifests(monkeypatch):
@@ -289,28 +251,11 @@ def test_go_skips_hls_manifests(monkeypatch):
     assert r.headers["X-Direct-Format"] == "18"
 
 
-def test_download_logs_server_egress(monkeypatch, tmp_path, caplog):
-    import logging
-
-    import app.api.v1.media as api
-
-    f = tmp_path / "vid.mp4"
-    f.write_bytes(b"fake-bytes")
-    d = tmp_path / "work"
-    d.mkdir()
-
-    async def fake_dl(url, quality, audio_only):
-        return {
-            "path": str(f),
-            "tmpdir": str(d),
-            "filename": "vid.mp4",
-            "media_type": "video/mp4",
-            "size": 10,
-        }
-
-    monkeypatch.setattr(api, "download_media", fake_dl)
+def test_download_never_streams_bytes_even_with_valid_url():
+    """Even valid URLs get 410 — no code path may produce FileResponse."""
     c = _client()
-    with caplog.at_level(logging.INFO, logger="sqlhub.media"):
-        r = c.get("/api/v1/media/download", params={"url": "https://vimeo.com/1"})
-    assert r.status_code == 200, r.text
-    assert any("server-egress download" in m for m in caplog.messages)
+    r = c.get(
+        "/api/v1/media/download",
+        params={"url": "https://www.youtube.com/watch?v=x"},
+    )
+    assert r.status_code == 410, r.text

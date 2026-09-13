@@ -1,8 +1,4 @@
 import asyncio
-import re
-import shutil
-import tempfile
-from pathlib import Path
 from urllib.parse import parse_qs, parse_qsl, urlencode, urlparse, urlunparse
 
 import httpx
@@ -305,10 +301,8 @@ def build_variants(
     supported ceiling (e.g. a 720p-max video won't advertise 4K as
     available); the MP3 row is always offered.
 
-    Zero-egress: each variant carries a ``redirect_endpoint`` (/media/go 302
-    to the signed CDN URL) plus the raw ``direct_url`` when extraction
-    produced one. Bytes flow YouTube -> user device; the server only
-    serves JSON + redirect headers.
+    Zero-egress only: /media/go redirects are the sole download path.
+    Bytes flow source CDN -> user device; the server only serves JSON + redirect headers.
     """
     from urllib.parse import urlencode
 
@@ -317,7 +311,6 @@ def build_variants(
     for q in OFFERED_QUALITIES:
         h = _quality_height(q)
         support = _formats_support_height(fmts, h) if source == "ytdlp" else None
-        query = urlencode({"url": url, "quality": q, "audio_only": "false"})
         picked = _pick_direct_format(fmts, None, q, False) if source == "ytdlp" else None
         go_query = urlencode({"url": url, "quality": q, "audio_only": "false"})
         if picked and picked.get("id"):
@@ -326,14 +319,15 @@ def build_variants(
                 "format_id": str(picked.get("id", "")),
             })
         needs_mux = bool(picked) and not bool(picked.get("is_progressive"))
+        go_url = f"/api/v1/media/go?{go_query}" if (source == "ytdlp" and picked) else None
         variants.append({
             "id": f"video-{q}",
             "label": f"{q}p MP4" if q != "2160" else "4K MP4",
             "kind": "video",
             "quality": q,
             "audio_only": False,
-            "download_endpoint": f"/api/v1/media/download?{query}",
-            "redirect_endpoint": f"/api/v1/media/go?{go_query}" if source == "ytdlp" else None,
+            "download_endpoint": go_url or "",
+            "redirect_endpoint": go_url,
             "direct_url": (picked or {}).get("url"),
             "expires_in": (picked or {}).get("expires_in"),
             "needs_mux": needs_mux if picked else None,
@@ -341,7 +335,6 @@ def build_variants(
             "approx_size": (picked or {}).get("filesize"),
             "ext": (picked or {}).get("ext") or "mp4",
         })
-    query = urlencode({"url": url, "quality": default_quality, "audio_only": "true"})
     picked_audio = (
         _pick_direct_format(fmts, None, default_quality, True) if source == "ytdlp" else None
     )
@@ -351,14 +344,15 @@ def build_variants(
             "url": url, "quality": default_quality, "audio_only": "true",
             "format_id": str(picked_audio.get("id", "")),
         })
+    go_audio_url = f"/api/v1/media/go?{go_audio}" if (source == "ytdlp" and picked_audio) else None
     variants.append({
         "id": "audio-mp3",
         "label": "MP3 audio",
         "kind": "audio",
         "quality": default_quality,
         "audio_only": True,
-        "download_endpoint": f"/api/v1/media/download?{query}",
-        "redirect_endpoint": f"/api/v1/media/go?{go_audio}" if source == "ytdlp" else None,
+        "download_endpoint": go_audio_url or "",
+        "redirect_endpoint": go_audio_url,
         "direct_url": (picked_audio or {}).get("url"),
         "expires_in": (picked_audio or {}).get("expires_in"),
         "needs_mux": False,
@@ -369,101 +363,9 @@ def build_variants(
     return variants, variants[2]["download_endpoint"]  # 720p default
 
 
-# 2GB cap advertised in the UI — enforced both in yt-dlp and before streaming.
-MAX_BYTES = 2 * 1024**3
-
-
 def _quality_height(quality: str) -> int:
     try:
         h = int(str(quality).strip())
     except (TypeError, ValueError):
         h = 720
     return min(max(h, 144), 2160)
-
-
-def _download_sync(url: str, quality: str, audio_only: bool) -> dict:
-    """Blocking yt-dlp fetch. Returns {path, tmpdir, filename, media_type, size}."""
-    from yt_dlp import YoutubeDL
-    from yt_dlp.utils import DownloadError
-
-    tmpdir = Path(tempfile.mkdtemp(prefix="linksaver-"))
-    h = _quality_height(quality)
-    if audio_only:
-        opts = {
-            "format": "bestaudio/best",
-            "outtmpl": {"default": str(tmpdir / "%(title).80s [%(id)s].%(ext)s")},
-            "restrictfilenames": True,
-            "quiet": True,
-            "no_warnings": True,
-            "noplaylist": True,
-            "socket_timeout": 30,
-            "retries": 2,
-            "max_filesize": MAX_BYTES,
-            "postprocessors": [
-                {"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}
-            ],
-        }
-    else:
-        opts = {
-            "format": f"bv*[height<={h}]+ba/b[height<={h}]/b",
-            "merge_output_format": "mp4",
-            "outtmpl": {"default": str(tmpdir / "%(title).80s [%(id)s].%(ext)s")},
-            "restrictfilenames": True,
-            "quiet": True,
-            "no_warnings": True,
-            "noplaylist": True,
-            "socket_timeout": 30,
-            "retries": 2,
-            "max_filesize": MAX_BYTES,
-        }
-    try:
-        with YoutubeDL(opts) as ydl:
-            ydl.download([url])
-    except DownloadError as e:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-        raise RuntimeError(f"download failed: {e}") from e
-    candidates = sorted(
-        (p for p in tmpdir.iterdir() if p.is_file() and not p.suffix == ".part"),
-        key=lambda p: p.stat().st_size,
-        reverse=True,
-    )
-    if not candidates:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-        raise RuntimeError("download produced no file")
-    target = candidates[0]
-    if audio_only and target.suffix.lower() != ".mp3":
-        # FFmpeg postprocessor missing/failed — refuse instead of handing back video.
-        shutil.rmtree(tmpdir, ignore_errors=True)
-        raise RuntimeError("audio conversion failed (ffmpeg/ffprobe required for mp3)")
-    import mimetypes
-
-    media_type = mimetypes.guess_type(target.name)[0] or (
-        "audio/mpeg" if audio_only else "video/mp4"
-    )
-    # Clean up stray sidecars, keep only the deliverable.
-    for p in candidates[1:]:
-        p.unlink(missing_ok=True)
-    size = target.stat().st_size
-    if size > MAX_BYTES:
-        shutil.rmtree(tmpdir, ignore_errors=True)
-        raise RuntimeError("file exceeds 2GB cap")
-    return {
-        "path": str(target),
-        "tmpdir": str(tmpdir),
-        "filename": target.name,
-        "media_type": media_type,
-        "size": size,
-    }
-
-
-async def download_media(url: str, quality: str = "720", audio_only: bool = False) -> dict:
-    return await asyncio.to_thread(_download_sync, url, quality, audio_only)
-
-
-def sanitize_filename(name: str, fallback: str = "video.mp4") -> str:
-    cleaned = re.sub(r"[^\w\-. ]+", "_", (name or "").strip()).strip("._")
-    return cleaned or fallback
-
-
-def cleanup_download_dir(tmpdir: str) -> None:
-    shutil.rmtree(tmpdir, ignore_errors=True)

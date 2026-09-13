@@ -3,8 +3,7 @@ from urllib.parse import urlparse
 import logging
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse, RedirectResponse
-from starlette.background import BackgroundTask
+from fastapi.responses import RedirectResponse
 
 logger = logging.getLogger("sqlhub.media")
 
@@ -12,12 +11,9 @@ from app.schemas.media import MediaResolveOut, MediaResolveRequest
 from app.services.media import (
     PLATFORMS,
     build_variants,
-    cleanup_download_dir,
     detect_platform,
-    download_media,
     resolve_direct_url,
     resolve_media,
-    sanitize_filename,
     strip_playlist_params,
 )
 
@@ -79,14 +75,12 @@ async def go(
 ):
     """Zero-egress redirect: re-extract and 302 to the signed CDN URL.
 
-    Bytes flow YouTube -> user device. The server only serves this
+    Bytes flow source CDN -> user device. The server only serves this
     redirect header — no download, no temp file, no media egress.
     URLs are short-lived (use within minutes) and may be IP-locked;
     the client should navigate immediately via anchor tag.
     """
     src = _validate_download_url(url)
-    if detect_platform(src) != "youtube":
-        raise HTTPException(400, "direct redirect currently supports YouTube only")
     try:
         direct = await resolve_direct_url(src, quality or "720", bool(audio_only), format_id)
     except RuntimeError as e:
@@ -99,7 +93,8 @@ async def go(
     if direct.get("format_id"):
         headers["X-Direct-Format"] = str(direct["format_id"])
     logger.info(
-        "zero-egress redirect: quality=%s audio_only=%s format_id=%s category=%s ext=%s expires_in=%s url=%s",
+        "zero-egress redirect: platform=%s quality=%s audio_only=%s format_id=%s category=%s ext=%s expires_in=%s url=%s",
+        detect_platform(src),
         quality,
         bool(audio_only),
         direct.get("format_id"),
@@ -117,24 +112,11 @@ async def download(
     quality: str = Query("720"),
     audio_only: bool = Query(False),
 ):
+    """Disabled: proxied downloads cost server egress. Use /media/go."""
     src = _validate_download_url(url)
-    try:
-        dl = await download_media(src, quality or "720", bool(audio_only))
-    except RuntimeError as e:
-        raise HTTPException(502, str(e))
-    except Exception as e:  # noqa: BLE001
-        raise HTTPException(502, f"download failed: {e}")
-    filename = sanitize_filename(dl["filename"])
-    logger.info(
-        "server-egress download: quality=%s audio_only=%s bytes=%s url=%s",
-        quality,
-        bool(audio_only),
-        dl.get("size"),
-        src,
-    )
-    return FileResponse(
-        dl["path"],
-        media_type=dl["media_type"],
-        filename=filename,
-        background=BackgroundTask(cleanup_download_dir, dl["tmpdir"]),
+    logger.warning("blocked server-egress download attempt: url=%s", src)
+    raise HTTPException(
+        410,
+        "Server-side downloads are disabled (zero-egress mode). "
+        "Use the direct link (/media/go redirect) instead.",
     )

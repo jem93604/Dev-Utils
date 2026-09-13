@@ -147,9 +147,9 @@ export function LinkSaverPanel() {
   const zeroEgressCount = variants.filter(isZeroEgress).length;
 
   const openDirect = (v: MediaVariant) => {
-    // Zero-egress: bytes flow YouTube -> user device. Server only served
-    // JSON + (for redirect_endpoint) a 302 header. Navigate immediately —
-    // signed URLs expire in minutes and may be IP-locked.
+    // Zero-egress only: bytes flow source CDN -> user device. The server
+    // only served JSON + (for redirect_endpoint) a 302 header. Navigate
+    // immediately — signed URLs expire in minutes and may be IP-locked.
     const href = directHrefFor(v);
     if (!href) return false;
     console.info(
@@ -181,42 +181,11 @@ export function LinkSaverPanel() {
 
   const downloadVariant = async (v: MediaVariant) => {
     if (dlId) return;
-    // Prefer zero-egress for YouTube; server fetch only when no direct link.
+    // Zero-egress only: direct links are the only path. If none was
+    // resolved, refuse instead of fetching bytes through the server.
     if (openDirect(v)) return;
-    setDlError(undefined);
-    setDlId(v.id);
-    try {
-      const r = await fetch(v.download_endpoint);
-      if (!r.ok) {
-        const d = await r.json().catch(() => null);
-        const msg =
-          (d as { detail?: string } | null)?.detail ?? `Download failed (${r.status})`;
-        throw new Error(msg);
-      }
-      const blob = await r.blob();
-      const cd = r.headers.get("content-disposition") ?? "";
-      const m = /filename\*?=(?:UTF-8'')?"?([^";]+)"?/i.exec(cd);
-      const fallback = data?.title
-        ? `${data.title.slice(0, 80)}.${v.ext}`
-        : v.kind === "audio"
-          ? "audio.mp3"
-          : "video.mp4";
-      const name = m ? decodeURIComponent(m[1]) : fallback;
-      const href = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = href;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(href), 5000);
-      setDlDone(v.id);
-      toast("Downloaded ✓");
-    } catch (e) {
-      setDlError(e instanceof Error ? e.message : "Download failed");
-    } finally {
-      setDlId(null);
-    }
+    console.warn(`[linksaver] no direct file for ${v.id} — server fetch disabled (zero-egress mode)`);
+    setDlError("No direct file available for this quality — server downloads are disabled. Re-fetch or try another quality.");
   };
 
   return (
@@ -450,12 +419,12 @@ export function LinkSaverPanel() {
                           className={`ls-dlrow${v.available === false ? "" : " best"}`}
                           onClick={() => downloadVariant(v)}
                           disabled={dlId !== null}
-                          title="No direct link — server fetch fallback"
+                          title="No direct file for this quality — server downloads disabled"
                         >
                           <span className="q">⬇ {v.label}</span>
                           {v.available === false && <span className="unav">~max</span>}
                           <span className="st">
-                            {dlId === v.id ? "⟳…" : dlDone === v.id ? "✓" : "srv"}
+                            {dlId === v.id ? "⟳…" : dlDone === v.id ? "✓" : "no file"}
                           </span>
                         </button>
                       );
