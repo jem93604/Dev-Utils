@@ -152,6 +152,9 @@ export function LinkSaverPanel() {
     // signed URLs expire in minutes and may be IP-locked.
     const href = directHrefFor(v);
     if (!href) return false;
+    console.info(
+      `[linksaver] zero-egress download: ${v.id} via ${v.redirect_endpoint ? "redirect /media/go" : "direct_url"} (no server media egress)`,
+    );
     const name =
       data?.title
         ? `${data.title.slice(0, 80)}.${v.ext}`

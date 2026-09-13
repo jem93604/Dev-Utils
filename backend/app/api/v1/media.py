@@ -1,8 +1,12 @@
 from urllib.parse import urlparse
 
+import logging
+
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, RedirectResponse
 from starlette.background import BackgroundTask
+
+logger = logging.getLogger("sqlhub.media")
 
 from app.schemas.media import MediaResolveOut, MediaResolveRequest
 from app.services.media import (
@@ -94,6 +98,14 @@ async def go(
         headers["X-Direct-Expires-In"] = str(direct["expires_in"])
     if direct.get("format_id"):
         headers["X-Direct-Format"] = str(direct["format_id"])
+    logger.info(
+        "zero-egress redirect: quality=%s audio_only=%s format_id=%s expires_in=%s url=%s",
+        quality,
+        bool(audio_only),
+        direct.get("format_id"),
+        direct.get("expires_in"),
+        src,
+    )
     return RedirectResponse(direct["url"], status_code=302, headers=headers)
 
 
@@ -111,6 +123,13 @@ async def download(
     except Exception as e:  # noqa: BLE001
         raise HTTPException(502, f"download failed: {e}")
     filename = sanitize_filename(dl["filename"])
+    logger.info(
+        "server-egress download: quality=%s audio_only=%s bytes=%s url=%s",
+        quality,
+        bool(audio_only),
+        dl.get("size"),
+        src,
+    )
     return FileResponse(
         dl["path"],
         media_type=dl["media_type"],

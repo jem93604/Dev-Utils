@@ -202,3 +202,70 @@ def test_download_surfaces_backend_failure(monkeypatch):
     c = _client()
     r = c.get("/api/v1/media/download", params={"url": "https://vimeo.com/1"})
     assert r.status_code == 502
+
+
+def test_go_redirects_zero_egress(monkeypatch, caplog):
+    import logging
+
+    import app.api.v1.media as api
+
+    async def fake_direct(url, quality, audio_only, format_id=None):
+        return {
+            "url": "https://rr1---sn.googlevideo.com/videoplayback?expire=123",
+            "format_id": "18",
+            "category": "progressive",
+            "is_progressive": True,
+            "expires_in": 300,
+            "ext": "mp4",
+        }
+
+    monkeypatch.setattr(api, "resolve_direct_url", fake_direct)
+    c = _client()
+    with caplog.at_level(logging.INFO, logger="sqlhub.media"):
+        r = c.get(
+            "/api/v1/media/go",
+            params={"url": "https://www.youtube.com/watch?v=x", "quality": "720"},
+            follow_redirects=False,
+        )
+    assert r.status_code == 302, r.text
+    assert r.headers["location"].startswith("https://rr1---sn.googlevideo.com/")
+    assert r.headers["X-Direct-Format"] == "18"
+    assert r.headers["X-Direct-Expires-In"] == "300"
+    assert any("zero-egress redirect" in m for m in caplog.messages)
+
+
+def test_go_rejects_non_youtube():
+    c = _client()
+    r = c.get(
+        "/api/v1/media/go",
+        params={"url": "https://vimeo.com/1"},
+        follow_redirects=False,
+    )
+    assert r.status_code == 400
+
+
+def test_download_logs_server_egress(monkeypatch, tmp_path, caplog):
+    import logging
+
+    import app.api.v1.media as api
+
+    f = tmp_path / "vid.mp4"
+    f.write_bytes(b"fake-bytes")
+    d = tmp_path / "work"
+    d.mkdir()
+
+    async def fake_dl(url, quality, audio_only):
+        return {
+            "path": str(f),
+            "tmpdir": str(d),
+            "filename": "vid.mp4",
+            "media_type": "video/mp4",
+            "size": 10,
+        }
+
+    monkeypatch.setattr(api, "download_media", fake_dl)
+    c = _client()
+    with caplog.at_level(logging.INFO, logger="sqlhub.media"):
+        r = c.get("/api/v1/media/download", params={"url": "https://vimeo.com/1"})
+    assert r.status_code == 200, r.text
+    assert any("server-egress download" in m for m in caplog.messages)
