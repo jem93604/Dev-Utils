@@ -14,6 +14,12 @@ describe('mockrows', () => {
     expect(parseColumnDefs('name')).toEqual([{ name: 'name', type: 'name' }]);
     expect(parseColumnDefs('user_id')).toEqual([{ name: 'user_id', type: 'int' }]);
     expect(parseColumnDefs('is_active')).toEqual([{ name: 'is_active', type: 'bool' }]);
+    expect(parseColumnDefs('phone, company, website, metadata')).toEqual([
+      { name: 'phone', type: 'phone' },
+      { name: 'company', type: 'company' },
+      { name: 'website', type: 'url' },
+      { name: 'metadata', type: 'json' },
+    ]);
   });
 
   it('rejects bad definitions', () => {
@@ -48,6 +54,21 @@ describe('mockrows', () => {
     const lines = sql.split('\n');
     expect(lines[0]).toBe('id');
     expect(lines).toHaveLength(3);
+  });
+
+  it('renders typed JSON records', () => {
+    const cols: ColumnDef[] = [
+      { name: 'id', type: 'int' },
+      { name: 'score', type: 'float' },
+      { name: 'active', type: 'bool' },
+      { name: 'metadata', type: 'json' },
+    ];
+    const parsed = JSON.parse(generateRows(cols, 1, 1, 't', 'json').sql) as Record<string, unknown>[];
+    expect(parsed).toHaveLength(1);
+    expect(typeof parsed[0]?.id).toBe('number');
+    expect(typeof parsed[0]?.score).toBe('number');
+    expect(typeof parsed[0]?.active).toBe('boolean');
+    expect(typeof parsed[0]?.metadata).toBe('object');
   });
 
   it('emits balanced quotes', () => {

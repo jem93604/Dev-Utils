@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildHtmlExport, extractMermaidBlocks, normalizeMathDelimiters } from './markdown';
+import { buildHtmlExport, extractMermaidBlocks, getExportCss, normalizeMathDelimiters } from './markdown';
 
 describe('extractMermaidBlocks', () => {
   it('extracts mermaid code fences', () => {
@@ -22,6 +22,26 @@ describe('buildHtmlExport', () => {
   });
   it('includes katex css for math exports', () => {
     expect(buildHtmlExport('<p>x</p>')).toContain('katex.min.css');
+  });
+  it('applies the dark theme when requested', () => {
+    const out = buildHtmlExport('<p>x</p>', 'T', 'dark');
+    expect(out).toContain('class="export-dark"');
+    expect(out).toContain('color-scheme" content="dark"');
+  });
+});
+
+describe('getExportCss', () => {
+  it('scopes bare element selectors under .export-doc and drops @page', () => {
+    const css = getExportCss('light');
+    expect(css).toContain('.export-doc h1');
+    expect(css).toContain('.export-doc pre');
+    expect(css).not.toContain('@page');
+    expect(css).not.toMatch(/(^|})body\{/);
+  });
+  it('maps the dark body class onto the export host', () => {
+    const css = getExportCss('dark');
+    expect(css).toContain('.export-doc.export-dark h1');
+    expect(css).toContain('.export-doc.export-dark pre');
   });
 });
 

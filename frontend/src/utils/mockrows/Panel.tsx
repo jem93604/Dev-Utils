@@ -7,7 +7,7 @@ export function MockRowsPanel() {
   const [table, setTable] = useState('users');
   const [count, setCount] = useState(5);
   const [seed, setSeed] = useState(42);
-  const [format, setFormat] = useState<'insert' | 'csv'>('insert');
+  const [format, setFormat] = useState<'insert' | 'csv' | 'json'>('insert');
   const [output, setOutput] = useState('');
   const [error, setError] = useState<string | undefined>();
 
@@ -26,7 +26,7 @@ export function MockRowsPanel() {
     <UtilShell id="util-mockrows" color="#f59e0b" title="🎲 Mock Row Generator">
       <div className="fmt-grid">
         <div className="fmt-col">
-          <label>Columns (name:type, …) — types: int uuid name email date bool lorem text</label>
+          <label>Columns (name:type, …) — types: int float uuid name email phone company url date bool lorem text json</label>
           <textarea className="fmt-textarea" rows={3} value={defs} onChange={(e) => setDefs(e.target.value)} placeholder="id:int, email" spellCheck={false} />
           <div style={{ display: 'flex', gap: 6 }}>
             <div style={{ flex: 2 }}>
@@ -43,9 +43,10 @@ export function MockRowsPanel() {
             </div>
           </div>
           <div className="fmt-btns">
-            <select className="fmt-btn" value={format} onChange={(e) => setFormat(e.target.value as 'insert' | 'csv')}>
+            <select className="fmt-btn" value={format} onChange={(e) => setFormat(e.target.value as 'insert' | 'csv' | 'json')}>
               <option value="insert">INSERT statements</option>
               <option value="csv">CSV</option>
+              <option value="json">JSON</option>
             </select>
             <button className="fmt-btn" onClick={run}>Generate</button>
           </div>

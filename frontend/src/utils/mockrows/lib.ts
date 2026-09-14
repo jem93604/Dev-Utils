@@ -1,21 +1,25 @@
 // Mock row generator: column defs -> deterministic fake rows (seeded PRNG)
 // rendered as INSERT statements or CSV. Pure client-side test data.
 
-export type ColumnType = 'int' | 'uuid' | 'name' | 'email' | 'date' | 'bool' | 'lorem' | 'text';
+export type ColumnType = 'int' | 'float' | 'uuid' | 'name' | 'email' | 'phone' | 'company' | 'url' | 'date' | 'bool' | 'lorem' | 'text' | 'json';
 
 export interface ColumnDef {
   name: string;
   type: ColumnType;
 }
 
-export type RenderFormat = 'insert' | 'csv';
+export type RenderFormat = 'insert' | 'csv' | 'json';
 
-const TYPES: ColumnType[] = ['int', 'uuid', 'name', 'email', 'date', 'bool', 'lorem', 'text'];
+const TYPES: ColumnType[] = ['int', 'float', 'uuid', 'name', 'email', 'phone', 'company', 'url', 'date', 'bool', 'lorem', 'text', 'json'];
 
 function inferType(name: string): ColumnType {
   const n = name.toLowerCase();
   if (/(^|_)id$/.test(n) || n.endsWith('_id') || n === 'id') return 'int';
   if (n.includes('email')) return 'email';
+  if (n.includes('phone') || n.includes('mobile')) return 'phone';
+  if (n.includes('company') || n.includes('organization')) return 'company';
+  if (n.includes('url') || n.includes('website') || n.includes('link')) return 'url';
+  if (n.includes('json') || n.includes('metadata') || n.includes('payload')) return 'json';
   if (n.includes('name')) return 'name';
   if (n.includes('uuid') || n.includes('guid')) return 'uuid';
   if (n.includes('date') || n.includes('_at') || n.includes('time')) return 'date';
@@ -53,6 +57,7 @@ function rng(seed: number): () => number {
 
 const FIRST = ['Ava', 'Liam', 'Mia', 'Noah', 'Zoe', 'Eli', 'Ivy', 'Omar', 'Nina', 'Kai'];
 const LAST = ['Chen', 'Garcia', 'Novak', 'Rossi', 'Kim', 'Weber', 'Ali', 'Silva', 'Berg', 'Costa'];
+const COMPANIES = ['Northstar Labs', 'Mosaic Works', 'Juniper Systems', 'Signal Harbor', 'Cedar & Co'];
 const WORDS = ['quick', 'ledger', 'harbor', 'signal', 'meadow', 'cipher', 'anchor', 'vista', 'ember', 'grove', 'pixel', 'summit'];
 
 function pick<T>(r: () => number, arr: T[]): T {
@@ -74,17 +79,22 @@ function fakeDate(r: () => number): string {
 function genValue(type: ColumnType, r: () => number, row: number): string {
   switch (type) {
     case 'int': return String(Math.floor(r() * 10000));
+    case 'float': return (r() * 10000).toFixed(2);
     case 'uuid': return fakeUuid(r);
     case 'name': return `${pick(r, FIRST)} ${pick(r, LAST)}`;
     case 'email': return `${pick(r, FIRST).toLowerCase()}.${pick(r, LAST).toLowerCase()}${row}@example.com`;
+    case 'phone': return `+1-555-${String(Math.floor(r() * 900) + 100)}-${String(Math.floor(r() * 9000) + 1000)}`;
+    case 'company': return pick(r, COMPANIES);
+    case 'url': return `https://example.com/${pick(r, WORDS)}/${row}`;
     case 'date': return fakeDate(r);
     case 'bool': return r() < 0.5 ? 'true' : 'false';
     case 'lorem': return Array.from({ length: 4 + Math.floor(r() * 5) }, () => pick(r, WORDS)).join(' ');
     case 'text': return Array.from({ length: 2 + Math.floor(r() * 3) }, () => pick(r, WORDS)).join(' ');
+    case 'json': return JSON.stringify({ active: r() < 0.5, score: Math.floor(r() * 100), tag: pick(r, WORDS) });
   }
 }
 
-const RAW = new Set<ColumnType>(['int', 'bool']);
+const RAW = new Set<ColumnType>(['int', 'float', 'bool']);
 
 function sqlLiteral(type: ColumnType, v: string): string {
   if (RAW.has(type)) return v;
@@ -110,6 +120,8 @@ export function generateRows(
   let sql: string;
   if (format === 'csv') {
     sql = [cols.map((c) => c.name).join(','), ...rows.map((row) => row.map(csvCell).join(','))].join('\n');
+  } else if (format === 'json') {
+    sql = JSON.stringify(rows.map((row) => Object.fromEntries(cols.map((col, i) => [col.name, parseJsonValue(col.type, row[i] as string)]))), null, 2);
   } else {
     const names = cols.map((c) => c.name).join(', ');
     sql = rows.length === 0
@@ -119,4 +131,12 @@ export function generateRows(
         ';';
   }
   return { rows, sql };
+}
+
+function parseJsonValue(type: ColumnType, value: string): unknown {
+  if (type === 'int') return Number.parseInt(value, 10);
+  if (type === 'float') return Number.parseFloat(value);
+  if (type === 'bool') return value === 'true';
+  if (type === 'json') return JSON.parse(value);
+  return value;
 }
